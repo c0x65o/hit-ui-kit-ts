@@ -1,6 +1,6 @@
 {
   "name": "@hit/ui-kit",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "UI Kit contract for HIT feature packs - interfaces and context only",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "@types/react": "^18.0.0",
-    "lucide-react": "^0.400.0",
+    "lucide-react": "^0.460.0",
     "typescript": "^5.0.0"
   },
   "peerDependencies": {
