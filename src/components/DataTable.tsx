@@ -164,7 +164,7 @@ export function DataTable<TData extends Record<string, unknown>>({
         justifyContent: 'center',
         padding: spacing['5xl'],
       })}>
-        <div style={{ color: colors.text.muted, animation: 'spin 1s linear infinite' }}>
+        <div style={{ color: colors.text.muted }}>
           Loading...
         </div>
       </div>
