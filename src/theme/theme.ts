@@ -97,21 +97,49 @@ export function ThemeProvider({
   defaultTheme = 'dark',
   storageKey = 'hit-ui-theme',
 }: ThemeProviderProps): React.ReactElement {
-  const [themeName, setThemeName] = useState<'dark' | 'light'>(defaultTheme);
+  // Initialize from DOM first (set by blocking script in layout.tsx) to prevent flash.
+  // Falls back to localStorage, then defaultTheme.
+  const [themeName, setThemeName] = useState<'dark' | 'light'>(() => {
+    // On client, read what the blocking script already set to avoid flash
+    if (typeof document !== 'undefined') {
+      const domTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+      return domTheme;
+    }
+    // SSR fallback: check localStorage if available (it won't be on server)
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(storageKey);
+      if (stored === 'dark' || stored === 'light') {
+        return stored;
+      }
+    }
+    return defaultTheme;
+  });
 
-  // Load theme from storage on mount
+  // Sync with localStorage on mount (in case DOM and localStorage are out of sync)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(storageKey);
       if (stored === 'dark' || stored === 'light') {
-        setThemeName(stored);
+        // Only update if different from current state
+        if (stored !== themeName) {
+          setThemeName(stored);
+        }
       }
     }
-  }, [storageKey]);
+  }, [storageKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update document attributes when theme changes
+  // Update document attributes when theme changes (skip initial if already correct)
+  const isInitialMount = React.useRef(true);
   useEffect(() => {
     if (typeof document !== 'undefined') {
+      // Skip on initial mount if DOM already has correct theme (set by blocking script)
+      const currentDomTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+      if (isInitialMount.current && currentDomTheme === themeName) {
+        isInitialMount.current = false;
+        return;
+      }
+      isInitialMount.current = false;
+      
       document.documentElement.setAttribute('data-theme', themeName);
       if (themeName === 'dark') {
         document.documentElement.classList.add('dark');
