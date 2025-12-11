@@ -23,5 +23,5 @@ import type { DataTableProps } from '../types';
  * />
  * ```
  */
-export declare function DataTable<TData extends Record<string, unknown>>({ columns, data, searchable, exportable, showColumnVisibility, onRowClick, emptyMessage, loading, pageSize, initialSorting, initialColumnVisibility, }: DataTableProps<TData>): import("react/jsx-runtime").JSX.Element;
+export declare function DataTable<TData extends Record<string, unknown>>({ columns, data, searchable, exportable, showColumnVisibility, onRowClick, emptyMessage, loading, pageSize, initialSorting, initialColumnVisibility, total, page: externalPage, onPageChange, manualPagination, }: DataTableProps<TData>): import("react/jsx-runtime").JSX.Element;
 //# sourceMappingURL=DataTable.d.ts.map

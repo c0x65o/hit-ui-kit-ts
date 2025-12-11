@@ -99,6 +99,10 @@ export interface DataTableProps<TData extends Record<string, unknown> = Record<s
         desc?: boolean;
     }>;
     initialColumnVisibility?: Record<string, boolean>;
+    total?: number;
+    page?: number;
+    onPageChange?: (page: number) => void;
+    manualPagination?: boolean;
 }
 export interface BadgeProps {
     variant?: 'default' | 'success' | 'warning' | 'error' | 'info';

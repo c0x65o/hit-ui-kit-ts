@@ -1,6 +1,6 @@
 'use client';
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { useState, useMemo } from 'react';
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
+import { useState, useMemo, useEffect } from 'react';
 import { useReactTable, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, flexRender, } from '@tanstack/react-table';
 import { ChevronDown, ChevronUp, ChevronsUpDown, Download, Eye, EyeOff, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, } from 'lucide-react';
 import { useThemeTokens } from '../theme/index.js';
@@ -31,16 +31,30 @@ import { Dropdown } from './Dropdown';
  * />
  * ```
  */
-export function DataTable({ columns, data, searchable = true, exportable = true, showColumnVisibility = true, onRowClick, emptyMessage = 'No data available', loading = false, pageSize = 10, initialSorting, initialColumnVisibility, }) {
+export function DataTable({ columns, data, searchable = true, exportable = true, showColumnVisibility = true, onRowClick, emptyMessage = 'No data available', loading = false, pageSize = 10, initialSorting, initialColumnVisibility, 
+// Server-side pagination
+total, page: externalPage, onPageChange, manualPagination = false, }) {
     const { colors, textStyles: ts, spacing } = useThemeTokens();
     const [sorting, setSorting] = useState(initialSorting?.map((s) => ({ id: s.id, desc: s.desc ?? false })) || []);
     const [columnFilters, setColumnFilters] = useState([]);
     const [columnVisibility, setColumnVisibility] = useState(initialColumnVisibility || {});
     const [globalFilter, setGlobalFilter] = useState('');
+    // Use external page if provided (server-side), otherwise use internal state (client-side)
+    const [internalPage, setInternalPage] = useState(0);
+    const currentPage = manualPagination && externalPage !== undefined ? externalPage - 1 : internalPage;
     const [pagination, setPagination] = useState({
-        pageIndex: 0,
+        pageIndex: currentPage,
         pageSize,
     });
+    // Update pagination when external page changes
+    useEffect(() => {
+        if (manualPagination && externalPage !== undefined) {
+            setPagination({
+                pageIndex: externalPage - 1,
+                pageSize,
+            });
+        }
+    }, [externalPage, manualPagination, pageSize]);
     // Convert columns to TanStack Table format
     const tableColumns = useMemo(() => {
         return columns.map((col) => ({
@@ -72,11 +86,23 @@ export function DataTable({ columns, data, searchable = true, exportable = true,
         onColumnFiltersChange: setColumnFilters,
         onColumnVisibilityChange: setColumnVisibility,
         onGlobalFilterChange: setGlobalFilter,
-        onPaginationChange: setPagination,
+        onPaginationChange: (updater) => {
+            const newPagination = typeof updater === 'function' ? updater(pagination) : updater;
+            setPagination(newPagination);
+            // If using server-side pagination, notify parent
+            if (manualPagination && onPageChange) {
+                onPageChange(newPagination.pageIndex + 1);
+            }
+            else {
+                setInternalPage(newPagination.pageIndex);
+            }
+        },
         getCoreRowModel: getCoreRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         getSortedRowModel: getSortedRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
+        getPaginationRowModel: manualPagination ? undefined : getPaginationRowModel(),
+        manualPagination,
+        pageCount: manualPagination && total !== undefined ? Math.ceil(total / pageSize) : undefined,
         globalFilterFn: 'includesString',
     });
     // Export to CSV
@@ -114,7 +140,7 @@ export function DataTable({ columns, data, searchable = true, exportable = true,
                 alignItems: 'center',
                 justifyContent: 'center',
                 padding: spacing['5xl'],
-            }), children: _jsx("div", { style: { color: colors.text.muted, animation: 'spin 1s linear infinite' }, children: "Loading..." }) }));
+            }), children: _jsx("div", { style: { color: colors.text.muted }, children: "Loading..." }) }));
     }
     const visibleColumns = table.getVisibleFlatColumns();
     const hasData = data.length > 0;
@@ -134,7 +160,7 @@ export function DataTable({ columns, data, searchable = true, exportable = true,
                                 } }), _jsx("input", { type: "search", placeholder: "Search...", value: globalFilter, onChange: (e) => setGlobalFilter(e.target.value), style: styles({
                                     width: '100%',
                                     height: '36px',
-                                    padding: `0 ${spacing.md} 0 ${spacing['2xl']}`,
+                                    padding: `0 ${spacing.md} 0 calc(${spacing.md} + 20px)`,
                                     backgroundColor: colors.bg.elevated,
                                     border: `1px solid ${colors.border.default}`,
                                     borderRadius: spacing.sm,
@@ -184,12 +210,12 @@ export function DataTable({ columns, data, searchable = true, exportable = true,
                                         textAlign: cell.column.columnDef.meta?.align || 'left',
                                         fontSize: ts.body.fontSize,
                                         color: colors.text.secondary,
-                                    }), children: flexRender(cell.column.columnDef.cell, cell.getContext()) }, cell.id))) }, row.id))) })] })) }), hasData && table.getPageCount() > 1 && (_jsxs("div", { style: styles({
+                                    }), children: flexRender(cell.column.columnDef.cell, cell.getContext()) }, cell.id))) }, row.id))) })] })) }), hasData && (manualPagination ? (total !== undefined && total > pageSize) : table.getPageCount() > 1) && (_jsxs("div", { style: styles({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     gap: spacing.md,
                     flexWrap: 'wrap',
-                }), children: [_jsxs("div", { style: { fontSize: ts.bodySmall.fontSize, color: colors.text.muted }, children: ["Showing ", table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1, " to", ' ', Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, table.getFilteredRowModel().rows.length), ' ', "of ", table.getFilteredRowModel().rows.length, " entries"] }), _jsxs("div", { style: { display: 'flex', gap: spacing.xs, alignItems: 'center' }, children: [_jsx(Button, { variant: "ghost", size: "sm", onClick: () => table.setPageIndex(0), disabled: !table.getCanPreviousPage(), children: _jsx(ChevronsLeft, { size: 16 }) }), _jsx(Button, { variant: "ghost", size: "sm", onClick: () => table.previousPage(), disabled: !table.getCanPreviousPage(), children: _jsx(ChevronLeft, { size: 16 }) }), _jsxs("div", { style: { fontSize: ts.bodySmall.fontSize, color: colors.text.secondary, padding: `0 ${spacing.md}` }, children: ["Page ", table.getState().pagination.pageIndex + 1, " of ", table.getPageCount()] }), _jsx(Button, { variant: "ghost", size: "sm", onClick: () => table.nextPage(), disabled: !table.getCanNextPage(), children: _jsx(ChevronRight, { size: 16 }) }), _jsx(Button, { variant: "ghost", size: "sm", onClick: () => table.setPageIndex(table.getPageCount() - 1), disabled: !table.getCanNextPage(), children: _jsx(ChevronsRight, { size: 16 }) })] })] }))] }));
+                }), children: [_jsx("div", { style: { fontSize: ts.bodySmall.fontSize, color: colors.text.muted }, children: manualPagination && total !== undefined ? (_jsxs(_Fragment, { children: ["Showing ", table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1, " to", ' ', Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, total), ' ', "of ", total, " entries"] })) : (_jsxs(_Fragment, { children: ["Showing ", table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1, " to", ' ', Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, table.getFilteredRowModel().rows.length), ' ', "of ", table.getFilteredRowModel().rows.length, " entries"] })) }), _jsxs("div", { style: { display: 'flex', gap: spacing.xs, alignItems: 'center' }, children: [_jsx(Button, { variant: "ghost", size: "sm", onClick: () => table.setPageIndex(0), disabled: !table.getCanPreviousPage(), children: _jsx(ChevronsLeft, { size: 16 }) }), _jsx(Button, { variant: "ghost", size: "sm", onClick: () => table.previousPage(), disabled: !table.getCanPreviousPage(), children: _jsx(ChevronLeft, { size: 16 }) }), _jsxs("div", { style: { fontSize: ts.bodySmall.fontSize, color: colors.text.secondary, padding: `0 ${spacing.md}` }, children: ["Page ", table.getState().pagination.pageIndex + 1, " of ", table.getPageCount()] }), _jsx(Button, { variant: "ghost", size: "sm", onClick: () => table.nextPage(), disabled: !table.getCanNextPage(), children: _jsx(ChevronRight, { size: 16 }) }), _jsx(Button, { variant: "ghost", size: "sm", onClick: () => table.setPageIndex(table.getPageCount() - 1), disabled: !table.getCanNextPage(), children: _jsx(ChevronsRight, { size: 16 }) })] })] }))] }));
 }
 //# sourceMappingURL=DataTable.js.map
