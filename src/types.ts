@@ -121,6 +121,11 @@ export interface DataTableProps<TData extends Record<string, unknown> = Record<s
   pageSize?: number;
   initialSorting?: Array<{ id: string; desc?: boolean }>;
   initialColumnVisibility?: Record<string, boolean>;
+  // Server-side pagination
+  total?: number;
+  page?: number;
+  onPageChange?: (page: number) => void;
+  manualPagination?: boolean;
 }
 
 export interface BadgeProps {

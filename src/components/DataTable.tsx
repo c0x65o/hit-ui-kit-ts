@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -69,6 +69,11 @@ export function DataTable<TData extends Record<string, unknown>>({
   pageSize = 10,
   initialSorting,
   initialColumnVisibility,
+  // Server-side pagination
+  total,
+  page: externalPage,
+  onPageChange,
+  manualPagination = false,
 }: DataTableProps<TData>) {
   const { colors, textStyles: ts, spacing } = useThemeTokens();
   
@@ -78,10 +83,25 @@ export function DataTable<TData extends Record<string, unknown>>({
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(initialColumnVisibility || {});
   const [globalFilter, setGlobalFilter] = useState('');
+  
+  // Use external page if provided (server-side), otherwise use internal state (client-side)
+  const [internalPage, setInternalPage] = useState(0);
+  const currentPage = manualPagination && externalPage !== undefined ? externalPage - 1 : internalPage;
+  
   const [pagination, setPagination] = useState({
-    pageIndex: 0,
+    pageIndex: currentPage,
     pageSize,
   });
+  
+  // Update pagination when external page changes
+  useEffect(() => {
+    if (manualPagination && externalPage !== undefined) {
+      setPagination({
+        pageIndex: externalPage - 1,
+        pageSize,
+      });
+    }
+  }, [externalPage, manualPagination, pageSize]);
 
   // Convert columns to TanStack Table format
   const tableColumns = useMemo<ColumnDef<TData>[]>(() => {
@@ -115,11 +135,23 @@ export function DataTable<TData extends Record<string, unknown>>({
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onGlobalFilterChange: setGlobalFilter,
-    onPaginationChange: setPagination,
+    onPaginationChange: (updater) => {
+      const newPagination = typeof updater === 'function' ? updater(pagination) : updater;
+      setPagination(newPagination);
+      
+      // If using server-side pagination, notify parent
+      if (manualPagination && onPageChange) {
+        onPageChange(newPagination.pageIndex + 1);
+      } else {
+        setInternalPage(newPagination.pageIndex);
+      }
+    },
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    getPaginationRowModel: manualPagination ? undefined : getPaginationRowModel(),
+    manualPagination,
+    pageCount: manualPagination && total !== undefined ? Math.ceil(total / pageSize) : undefined,
     globalFilterFn: 'includesString',
   });
 
@@ -206,7 +238,7 @@ export function DataTable<TData extends Record<string, unknown>>({
                 style={styles({
                   width: '100%',
                   height: '36px',
-                  padding: `0 ${spacing.md} 0 ${spacing['2xl']}`,
+                  padding: `0 ${spacing.md} 0 calc(${spacing.md} + 20px)`,
                   backgroundColor: colors.bg.elevated,
                   border: `1px solid ${colors.border.default}`,
                   borderRadius: spacing.sm,
@@ -346,7 +378,7 @@ export function DataTable<TData extends Record<string, unknown>>({
       </div>
 
       {/* Pagination */}
-      {hasData && table.getPageCount() > 1 && (
+      {hasData && (manualPagination ? (total !== undefined && total > pageSize) : table.getPageCount() > 1) && (
         <div style={styles({
           display: 'flex',
           alignItems: 'center',
@@ -355,12 +387,25 @@ export function DataTable<TData extends Record<string, unknown>>({
           flexWrap: 'wrap',
         })}>
           <div style={{ fontSize: ts.bodySmall.fontSize, color: colors.text.muted }}>
-            Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{' '}
-            {Math.min(
-              (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-              table.getFilteredRowModel().rows.length
-            )}{' '}
-            of {table.getFilteredRowModel().rows.length} entries
+            {manualPagination && total !== undefined ? (
+              <>
+                Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{' '}
+                {Math.min(
+                  (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+                  total
+                )}{' '}
+                of {total} entries
+              </>
+            ) : (
+              <>
+                Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{' '}
+                {Math.min(
+                  (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+                  table.getFilteredRowModel().rows.length
+                )}{' '}
+                of {table.getFilteredRowModel().rows.length} entries
+              </>
+            )}
           </div>
 
           <div style={{ display: 'flex', gap: spacing.xs, alignItems: 'center' }}>
