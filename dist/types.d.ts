@@ -25,15 +25,12 @@ export interface ButtonProps {
     onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
     children: React.ReactNode;
 }
-export interface InputProps {
+export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> {
     label?: string;
-    type?: 'text' | 'email' | 'password' | 'number' | 'tel' | 'url' | 'search';
-    placeholder?: string;
+    type?: React.InputHTMLAttributes<HTMLInputElement>['type'];
     value: string;
     onChange: (value: string) => void;
     error?: string;
-    disabled?: boolean;
-    required?: boolean;
 }
 export interface TextAreaProps {
     label?: string;
