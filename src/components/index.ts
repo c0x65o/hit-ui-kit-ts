@@ -27,6 +27,7 @@ export { Avatar } from './Avatar';
 // Feedback
 export { Alert } from './Alert';
 export { Modal } from './Modal';
+export { AlertDialog } from './AlertDialog';
 export { Spinner } from './Spinner';
 export { EmptyState } from './EmptyState';
 

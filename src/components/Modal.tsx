@@ -34,9 +34,12 @@ export function Modal({ open, onClose, title, description, size = 'md', children
       <div style={styles({
         display: 'flex',
         minHeight: '100vh',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'center',
-        padding: spacing.lg,
+        paddingTop: '5rem',
+        paddingBottom: spacing.lg,
+        paddingLeft: spacing.lg,
+        paddingRight: spacing.lg,
       })}>
         {/* Backdrop */}
         <div
