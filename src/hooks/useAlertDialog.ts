@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import type { AlertDialogProps } from '../types';
 
 export interface AlertDialogOptions {
@@ -21,18 +21,24 @@ export interface AlertDialogState extends AlertDialogOptions {
 /**
  * Hook for programmatically showing alert dialogs.
  * 
+ * Returns state and props that can be used with AlertDialog component from useUi().
+ * 
  * @example
  * ```tsx
- * const { AlertDialog, showAlert, showConfirm } = useAlertDialog();
+ * const { AlertDialog } = useUi();
+ * const alertDialog = useAlertDialog();
  * 
  * // Simple alert
- * await showAlert('Operation completed successfully!', { variant: 'success' });
+ * await alertDialog.showAlert('Operation completed successfully!', { variant: 'success' });
  * 
  * // Confirmation dialog
- * const confirmed = await showConfirm('Are you sure you want to delete this?');
+ * const confirmed = await alertDialog.showConfirm('Are you sure you want to delete this?');
  * if (confirmed) {
  *   // User confirmed
  * }
+ * 
+ * // Render the dialog
+ * <AlertDialog {...alertDialog.props} />
  * ```
  */
 export function useAlertDialog() {
@@ -92,29 +98,23 @@ export function useAlertDialog() {
     }));
   }, []);
 
-  const AlertDialogComponent = useCallback(({ AlertDialog: AlertDialogComp }: { AlertDialog: React.ComponentType<AlertDialogProps> }) => {
-    if (!state.open) return null;
-    
-    return (
-      <AlertDialogComp
-        open={state.open}
-        onClose={close}
-        variant={state.variant}
-        title={state.title}
-        message={state.message}
-        confirmText={state.confirmText}
-        cancelText={state.cancelText}
-        onConfirm={state.onConfirm}
-        onCancel={state.onCancel}
-        size={state.size}
-      />
-    );
-  }, [state, close]);
+  const props: AlertDialogProps = {
+    open: state.open,
+    onClose: close,
+    variant: state.variant,
+    title: state.title,
+    message: state.message,
+    confirmText: state.confirmText,
+    cancelText: state.cancelText,
+    onConfirm: state.onConfirm,
+    onCancel: state.onCancel,
+    size: state.size,
+  };
 
   return {
     showAlert,
     showConfirm,
     close,
-    AlertDialog: AlertDialogComponent,
+    props,
   };
 }

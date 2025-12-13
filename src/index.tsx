@@ -166,6 +166,10 @@ export * from './tokens';
 // Default Kit
 export { defaultKit } from './kit';
 
+// Hooks
+export { useAlertDialog } from './hooks/useAlertDialog';
+export type { AlertDialogOptions, AlertDialogState } from './hooks/useAlertDialog';
+
 // Components (for direct imports)
 export {
   Page,
@@ -181,6 +185,7 @@ export {
   Avatar,
   Alert,
   Modal,
+  AlertDialog,
   Spinner,
   EmptyState,
   Tabs,
