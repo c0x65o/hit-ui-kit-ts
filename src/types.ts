@@ -190,9 +190,12 @@ export interface EmptyStateProps {
 // =============================================================================
 
 export interface TabsProps {
-  tabs: { id: string; label: string; content: React.ReactNode }[];
+  tabs: { id?: string; value?: string; label: string; content?: React.ReactNode }[];
   activeTab?: string;
   onChange?: (tabId: string) => void;
+  // Alternative controlled API
+  value?: string;
+  onValueChange?: (tabId: string) => void;
 }
 
 export interface DropdownProps {
