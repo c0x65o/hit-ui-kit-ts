@@ -5,7 +5,7 @@
  */
 import React from 'react';
 export interface PageProps {
-    title?: string;
+    title?: React.ReactNode;
     description?: string;
     actions?: React.ReactNode;
     breadcrumbs?: BreadcrumbItem[];
@@ -18,7 +18,7 @@ export interface CardProps {
     footer?: React.ReactNode;
     children: React.ReactNode;
 }
-export interface ButtonProps {
+export interface ButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'type' | 'onClick' | 'disabled'> {
     variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'link';
     size?: 'sm' | 'md' | 'lg';
     loading?: boolean;
@@ -27,9 +27,9 @@ export interface ButtonProps {
     onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
     children: React.ReactNode;
 }
-export interface InputProps {
+export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type' | 'onChange' | 'value'> {
     label?: string;
-    type?: 'text' | 'email' | 'password' | 'number' | 'tel' | 'url' | 'search';
+    type?: 'text' | 'email' | 'password' | 'number' | 'tel' | 'url' | 'search' | 'date' | 'datetime' | 'datetime-local' | 'time' | 'month' | 'week' | 'color' | 'range' | 'file' | 'hidden' | 'checkbox' | 'radio' | 'submit' | 'reset' | 'button' | 'image';
     placeholder?: string;
     value: string;
     onChange: (value: string) => void;
@@ -82,9 +82,10 @@ export interface TableProps {
     emptyMessage?: string;
     loading?: boolean;
 }
-export interface DataTableColumn<TData = Record<string, unknown>> extends TableColumn {
+export interface DataTableColumn<TData = Record<string, unknown>> extends Omit<TableColumn, 'render'> {
     sortable?: boolean;
     hideable?: boolean;
+    render?: (value: any, row?: TData, index?: number) => React.ReactNode;
 }
 export interface GroupConfig<TData = Record<string, unknown>> {
     /** Field key to group by */
@@ -119,7 +120,7 @@ export interface DataTableProps<TData extends Record<string, unknown> = Record<s
     refreshing?: boolean;
     groupBy?: GroupConfig<TData>;
 }
-export interface BadgeProps {
+export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
     variant?: 'default' | 'success' | 'warning' | 'error' | 'info';
     children: React.ReactNode;
 }
@@ -128,7 +129,7 @@ export interface AvatarProps {
     name?: string;
     size?: 'sm' | 'md' | 'lg';
 }
-export interface AlertProps {
+export interface AlertProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'> {
     variant: 'success' | 'warning' | 'error' | 'info';
     title?: string;
     onClose?: () => void;

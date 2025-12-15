@@ -5,7 +5,7 @@ import { useThemeTokens } from '../theme/index.js';
 import { styles } from './utils';
 import type { BadgeProps } from '../types';
 
-export function Badge({ variant = 'default', children }: BadgeProps) {
+export function Badge({ variant = 'default', children, ...rest }: BadgeProps) {
   const { colors, radius, textStyles: ts, spacing } = useThemeTokens();
 
   const getVariantStyles = () => {
@@ -44,7 +44,7 @@ export function Badge({ variant = 'default', children }: BadgeProps) {
   };
 
   return (
-    <span style={styles({
+    <span {...rest} style={styles({
       display: 'inline-flex',
       alignItems: 'center',
       padding: `${spacing.px} ${spacing.sm}`,

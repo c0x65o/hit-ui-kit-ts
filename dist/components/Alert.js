@@ -3,7 +3,7 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { X, CheckCircle, AlertTriangle, AlertCircle, Info } from 'lucide-react';
 import { useThemeTokens } from '../theme/index.js';
 import { styles } from './utils';
-export function Alert({ variant, title, onClose, children }) {
+export function Alert({ variant, title, onClose, children, ...rest }) {
     const { colors, radius, textStyles: ts, spacing } = useThemeTokens();
     const getVariantStyles = () => {
         switch (variant) {
@@ -39,7 +39,7 @@ export function Alert({ variant, title, onClose, children }) {
         }
     };
     const variantStyles = getVariantStyles();
-    return (_jsx("div", { style: styles({
+    return (_jsx("div", { ...rest, style: styles({
             backgroundColor: variantStyles.bg,
             border: `1px solid ${variantStyles.border}`,
             borderRadius: radius.lg,

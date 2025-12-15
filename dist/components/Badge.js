@@ -2,7 +2,7 @@
 import { jsx as _jsx } from "react/jsx-runtime";
 import { useThemeTokens } from '../theme/index.js';
 import { styles } from './utils';
-export function Badge({ variant = 'default', children }) {
+export function Badge({ variant = 'default', children, ...rest }) {
     const { colors, radius, textStyles: ts, spacing } = useThemeTokens();
     const getVariantStyles = () => {
         switch (variant) {
@@ -38,7 +38,7 @@ export function Badge({ variant = 'default', children }) {
                 };
         }
     };
-    return (_jsx("span", { style: styles({
+    return (_jsx("span", { ...rest, style: styles({
             display: 'inline-flex',
             alignItems: 'center',
             padding: `${spacing.px} ${spacing.sm}`,

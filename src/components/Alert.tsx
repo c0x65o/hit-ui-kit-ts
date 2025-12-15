@@ -6,7 +6,7 @@ import { useThemeTokens } from '../theme/index.js';
 import { styles } from './utils';
 import type { AlertProps } from '../types';
 
-export function Alert({ variant, title, onClose, children }: AlertProps) {
+export function Alert({ variant, title, onClose, children, ...rest }: AlertProps) {
   const { colors, radius, textStyles: ts, spacing } = useThemeTokens();
 
   const getVariantStyles = () => {
@@ -46,7 +46,7 @@ export function Alert({ variant, title, onClose, children }: AlertProps) {
   const variantStyles = getVariantStyles();
 
   return (
-    <div style={styles({
+    <div {...rest} style={styles({
       backgroundColor: variantStyles.bg,
       border: `1px solid ${variantStyles.border}`,
       borderRadius: radius.lg,

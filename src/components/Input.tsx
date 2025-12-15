@@ -14,6 +14,7 @@ export function Input({
   error,
   disabled,
   required,
+  ...rest
 }: InputProps) {
   const { colors, radius, componentSpacing, textStyles: ts, spacing } = useThemeTokens();
 
@@ -37,6 +38,7 @@ export function Input({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
+        {...rest}
         style={styles({
           width: '100%',
           height: componentSpacing.input.height,

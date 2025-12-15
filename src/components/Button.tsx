@@ -14,6 +14,7 @@ export function Button({
   type = 'button',
   onClick,
   children,
+  ...rest
 }: ButtonProps) {
   const { colors, radius, componentSpacing, textStyles: ts } = useThemeTokens();
 
@@ -85,6 +86,7 @@ export function Button({
       type={type}
       disabled={isDisabled}
       onClick={onClick}
+      {...rest}
       style={styles({
         display: 'inline-flex',
         alignItems: 'center',

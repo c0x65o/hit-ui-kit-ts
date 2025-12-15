@@ -3,7 +3,7 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { Loader2 } from 'lucide-react';
 import { useThemeTokens } from '../theme/index.js';
 import { styles } from './utils';
-export function Button({ variant = 'primary', size = 'md', loading, disabled, type = 'button', onClick, children, }) {
+export function Button({ variant = 'primary', size = 'md', loading, disabled, type = 'button', onClick, children, ...rest }) {
     const { colors, radius, componentSpacing, textStyles: ts } = useThemeTokens();
     const isDisabled = disabled || loading;
     const getVariantStyles = () => {
@@ -65,7 +65,7 @@ export function Button({ variant = 'primary', size = 'md', loading, disabled, ty
                 };
         }
     };
-    return (_jsxs("button", { type: type, disabled: isDisabled, onClick: onClick, style: styles({
+    return (_jsxs("button", { type: type, disabled: isDisabled, onClick: onClick, ...rest, style: styles({
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
