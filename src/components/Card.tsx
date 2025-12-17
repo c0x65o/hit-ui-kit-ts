@@ -5,11 +5,11 @@ import { useThemeTokens } from '../theme/index.js';
 import { styles } from './utils';
 import type { CardProps } from '../types';
 
-export function Card({ title, description, footer, children }: CardProps) {
+export function Card({ title, description, footer, children, className }: CardProps) {
   const { colors, radius, componentSpacing, textStyles: ts, spacing } = useThemeTokens();
 
   return (
-    <div style={styles({
+    <div className={className} style={styles({
       backgroundColor: colors.bg.surface,
       border: `1px solid ${colors.border.subtle}`,
       borderRadius: radius.lg,

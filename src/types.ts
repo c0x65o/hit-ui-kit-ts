@@ -24,6 +24,7 @@ export interface CardProps {
   description?: string;
   footer?: React.ReactNode;
   children: React.ReactNode;
+  className?: string;
 }
 
 // =============================================================================
