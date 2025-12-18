@@ -152,6 +152,17 @@ export type {
   HelpProps,
 } from './types';
 
+// ACL Types
+export type {
+  PrincipalType,
+  Principal,
+  HierarchicalPermission,
+  GranularPermission,
+  AclEntry,
+  AclPickerConfig,
+  AclPickerProps,
+} from './types/acl';
+
 // Theme
 export {
   ThemeProvider,
@@ -201,6 +212,8 @@ export {
   AuthLayout,
   AuthCard,
   FormInput,
+  // ACL
+  AclPicker,
   // Utils
   cn,
   styles,
