@@ -185,6 +185,7 @@ export { defaultKit } from './kit';
 // Hooks
 export { useAlertDialog } from './hooks/useAlertDialog';
 export type { AlertDialogOptions, AlertDialogState } from './hooks/useAlertDialog';
+export { useTableView, type TableView, type TableViewFilter } from './hooks/useTableView';
 
 // Components (for direct imports)
 export {
@@ -214,6 +215,9 @@ export {
   FormInput,
   // ACL
   AclPicker,
+  // Views
+  ViewSelector,
+  FILTER_OPERATORS,
   // Utils
   cn,
   styles,

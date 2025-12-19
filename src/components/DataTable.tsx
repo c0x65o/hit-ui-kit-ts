@@ -33,66 +33,9 @@ import { styles } from './utils';
 import { Button } from './Button';
 import { Input } from './Input';
 import { Dropdown } from './Dropdown';
+import { ViewSelector } from './ViewSelector';
 import type { DataTableProps } from '../types';
-
-// ViewSelector wrapper - conditionally loads if table-views feature pack is available
-function ViewSelectorWrapper({ tableId, onViewFiltersChange }: { tableId: string; onViewFiltersChange?: (filters: Array<{ field: string; operator: string; value: any }>) => void }) {
-  const [ViewSelector, setViewSelector] = React.useState<any>(null);
-  const [ViewBuilder, setViewBuilder] = React.useState<any>(null);
-  const [showBuilder, setShowBuilder] = React.useState(false);
-  const [editingView, setEditingView] = React.useState<any>(null);
-
-  React.useEffect(() => {
-    // Try to dynamically import view components
-    import('@hit/feature-pack-table-views')
-      .then((mod) => {
-        setViewSelector(() => mod.ViewSelector);
-        setViewBuilder(() => mod.ViewBuilder);
-      })
-      .catch(() => {
-        // Feature pack not available - views won't be shown
-      });
-  }, []);
-
-  if (!ViewSelector) {
-    return null;
-  }
-
-  return (
-    <>
-      <ViewSelector
-        tableId={tableId}
-        onViewChange={(view) => {
-          if (view && onViewFiltersChange) {
-            onViewFiltersChange(view.filters || []);
-          }
-        }}
-        onCreateNew={() => setShowBuilder(true)}
-        onEdit={(view) => {
-          setEditingView(view);
-          setShowBuilder(true);
-        }}
-      />
-      {ViewBuilder && showBuilder && (
-        <ViewBuilder
-          open={showBuilder}
-          onClose={() => {
-            setShowBuilder(false);
-            setEditingView(null);
-          }}
-          onSave={async (viewData) => {
-            // View saving is handled by the hook inside ViewSelector
-            setShowBuilder(false);
-            setEditingView(null);
-          }}
-          initialView={editingView}
-          tableId={tableId}
-          availableColumns={[]} // Will be populated by parent if needed
-        />
-      )}
-    </>
-  );
-}
+import type { TableView } from '../hooks/useTableView';
 
 /**
  * DataTable Component
@@ -401,7 +344,15 @@ export function DataTable<TData extends Record<string, unknown>>({
           flexWrap: 'wrap',
         })}>
           {enableViews && tableId && (
-            <ViewSelectorWrapper tableId={tableId} onViewFiltersChange={onViewFiltersChange} />
+            <ViewSelector 
+              tableId={tableId} 
+              availableColumns={columns.map((col) => ({ key: col.key, label: col.label, type: 'string' }))}
+              onViewChange={(view: TableView | null) => {
+                if (onViewFiltersChange) {
+                  onViewFiltersChange(view?.filters || []);
+                }
+              }}
+            />
           )}
           {searchable && (
             <div style={{ flex: '1', minWidth: '200px', maxWidth: '400px', position: 'relative' }}>

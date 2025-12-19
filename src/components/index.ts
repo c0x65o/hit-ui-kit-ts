@@ -39,6 +39,9 @@ export { Breadcrumb } from './Breadcrumb';
 // Help
 export { Help } from './Help';
 
+// Views
+export { ViewSelector, FILTER_OPERATORS } from './ViewSelector';
+
 // ACL
 export { AclPicker } from './AclPicker';
 
