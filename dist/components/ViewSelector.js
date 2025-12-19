@@ -269,7 +269,7 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }) {
             left: 0,
             zIndex: 50,
             marginTop: spacing.xs,
-            minWidth: '280px',
+            minWidth: '360px',
             backgroundColor: colors.bg.surface,
             border: `1px solid ${colors.border.subtle}`,
             borderRadius: radius.lg,
