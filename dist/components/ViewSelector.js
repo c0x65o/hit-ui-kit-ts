@@ -71,7 +71,6 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }) {
     const [builderFilters, setBuilderFilters] = useState([]);
     const [builderColumnVisibility, setBuilderColumnVisibility] = useState({});
     const [builderGroupByField, setBuilderGroupByField] = useState('');
-    const [builderMetadataJson, setBuilderMetadataJson] = useState('');
     const [builderSaving, setBuilderSaving] = useState(false);
     // Share state
     const [shares, setShares] = useState([]);
@@ -93,7 +92,6 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }) {
                 setBuilderFilters(editingView.filters || []);
                 setBuilderColumnVisibility(editingView.columnVisibility || {});
                 setBuilderGroupByField(editingView.groupBy?.field || '');
-                setBuilderMetadataJson(editingView.metadata ? JSON.stringify(editingView.metadata, null, 2) : '');
                 // Load shares when editing
                 setSharesLoading(true);
                 getShares(editingView.id)
@@ -108,7 +106,6 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }) {
                 // Default: all columns visible
                 setBuilderColumnVisibility({});
                 setBuilderGroupByField('');
-                setBuilderMetadataJson('');
                 setShares([]);
             }
             setActiveTab('filters');
@@ -188,35 +185,12 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }) {
             if (builderGroupByField) {
                 groupByConfig = { field: builderGroupByField };
             }
-            // Parse metadata JSON (optional)
-            let parsedMetadata = undefined;
-            if (builderMetadataJson.trim()) {
-                try {
-                    const parsed = JSON.parse(builderMetadataJson);
-                    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-                        throw new Error('Metadata must be a JSON object');
-                    }
-                    parsedMetadata = parsed;
-                }
-                catch (e) {
-                    await alertDialog.showAlert(e?.message || 'Invalid metadata JSON', {
-                        variant: 'error',
-                        title: 'Invalid JSON',
-                    });
-                    return;
-                }
-            }
-            else if (editingView) {
-                // Allow clearing metadata when editing
-                parsedMetadata = null;
-            }
             const viewData = {
                 name: builderName.trim(),
                 description: builderDescription.trim() || undefined,
                 filters: builderFilters.filter((f) => f.field && f.operator),
                 columnVisibility: hasHiddenColumns ? builderColumnVisibility : undefined,
                 groupBy: groupByConfig,
-                ...(parsedMetadata !== undefined ? { metadata: parsedMetadata } : {}),
             };
             if (editingView) {
                 await updateView(editingView.id, viewData);
@@ -516,20 +490,7 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }) {
                                                 padding: '2px 6px',
                                                 borderRadius: radius.full,
                                                 fontWeight: '600',
-                                            }), children: "1" }))] }), _jsxs("button", { onClick: () => setActiveTab('advanced'), style: styles({
-                                        padding: `${spacing.sm} ${spacing.md}`,
-                                        fontSize: ts.body.fontSize,
-                                        fontWeight: activeTab === 'advanced' ? ts.label.fontWeight : 'normal',
-                                        color: activeTab === 'advanced' ? colors.primary.default : colors.text.muted,
-                                        background: 'none',
-                                        border: 'none',
-                                        borderBottom: activeTab === 'advanced' ? `2px solid ${colors.primary.default}` : '2px solid transparent',
-                                        marginBottom: '-1px',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: spacing.xs,
-                                    }), children: [_jsx(Edit2, { size: 14 }), "Advanced"] }), editingView && (_jsxs("button", { onClick: () => setActiveTab('sharing'), style: styles({
+                                            }), children: "1" }))] }), editingView && (_jsxs("button", { onClick: () => setActiveTab('sharing'), style: styles({
                                         padding: `${spacing.sm} ${spacing.md}`,
                                         fontSize: ts.body.fontSize,
                                         fontWeight: activeTab === 'sharing' ? ts.label.fontWeight : 'normal',
@@ -584,7 +545,7 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }) {
                                                         display: 'flex',
                                                         alignItems: 'center',
                                                     }), children: _jsx(Trash, { size: 16 }) })] }, index));
-                                    }) }))] })), activeTab === 'advanced' && (_jsxs("div", { style: styles({ display: 'flex', flexDirection: 'column', gap: spacing.md }), children: [_jsx("div", { style: styles({ color: colors.text.muted, fontSize: ts.bodySmall.fontSize }), children: "Optional JSON metadata stored on the view. This is where we can store things like metrics panel configs for sharing." }), _jsx(TextArea, { label: "View metadata (JSON)", value: builderMetadataJson, onChange: setBuilderMetadataJson, placeholder: '{\\n  "metrics": { ... }\\n}', rows: 10 })] })), activeTab === 'columns' && (_jsxs("div", { style: styles({ display: 'flex', flexDirection: 'column', gap: spacing.md }), children: [_jsx("p", { style: styles({ fontSize: ts.bodySmall.fontSize, color: colors.text.muted, margin: 0 }), children: "Select which columns to show in this view. Hidden columns will not appear in the table." }), hideableColumns.length === 0 ? (_jsx("div", { style: styles({
+                                    }) }))] })), activeTab === 'columns' && (_jsxs("div", { style: styles({ display: 'flex', flexDirection: 'column', gap: spacing.md }), children: [_jsx("p", { style: styles({ fontSize: ts.bodySmall.fontSize, color: colors.text.muted, margin: 0 }), children: "Select which columns to show in this view. Hidden columns will not appear in the table." }), hideableColumns.length === 0 ? (_jsx("div", { style: styles({
                                         padding: spacing.xl,
                                         textAlign: 'center',
                                         color: colors.text.muted,

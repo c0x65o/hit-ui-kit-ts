@@ -90,7 +90,7 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }: V
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showBuilder, setShowBuilder] = useState(false);
   const [editingView, setEditingView] = useState<TableView | null>(null);
-  const [activeTab, setActiveTab] = useState<'filters' | 'columns' | 'grouping' | 'sharing' | 'advanced'>('filters');
+  const [activeTab, setActiveTab] = useState<'filters' | 'columns' | 'grouping' | 'sharing'>('filters');
   
   // Builder form state
   const [builderName, setBuilderName] = useState('');
@@ -98,7 +98,6 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }: V
   const [builderFilters, setBuilderFilters] = useState<TableViewFilter[]>([]);
   const [builderColumnVisibility, setBuilderColumnVisibility] = useState<Record<string, boolean>>({});
   const [builderGroupByField, setBuilderGroupByField] = useState<string>('');
-  const [builderMetadataJson, setBuilderMetadataJson] = useState<string>('');
   const [builderSaving, setBuilderSaving] = useState(false);
   
   // Share state
@@ -124,7 +123,6 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }: V
         setBuilderFilters(editingView.filters || []);
         setBuilderColumnVisibility(editingView.columnVisibility || {});
         setBuilderGroupByField(editingView.groupBy?.field || '');
-        setBuilderMetadataJson(editingView.metadata ? JSON.stringify(editingView.metadata, null, 2) : '');
         // Load shares when editing
         setSharesLoading(true);
         getShares(editingView.id)
@@ -138,7 +136,6 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }: V
         // Default: all columns visible
         setBuilderColumnVisibility({});
         setBuilderGroupByField('');
-        setBuilderMetadataJson('');
         setShares([]);
       }
       setActiveTab('filters');
@@ -230,27 +227,6 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }: V
       if (builderGroupByField) {
         groupByConfig = { field: builderGroupByField };
       }
-
-      // Parse metadata JSON (optional)
-      let parsedMetadata: Record<string, unknown> | null | undefined = undefined;
-      if (builderMetadataJson.trim()) {
-        try {
-          const parsed = JSON.parse(builderMetadataJson);
-          if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-            throw new Error('Metadata must be a JSON object');
-          }
-          parsedMetadata = parsed as Record<string, unknown>;
-        } catch (e: any) {
-          await alertDialog.showAlert(e?.message || 'Invalid metadata JSON', {
-            variant: 'error',
-            title: 'Invalid JSON',
-          });
-          return;
-        }
-      } else if (editingView) {
-        // Allow clearing metadata when editing
-        parsedMetadata = null;
-      }
       
       const viewData = {
         name: builderName.trim(),
@@ -258,7 +234,6 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }: V
         filters: builderFilters.filter((f) => f.field && f.operator),
         columnVisibility: hasHiddenColumns ? builderColumnVisibility : undefined,
         groupBy: groupByConfig,
-        ...(parsedMetadata !== undefined ? { metadata: parsedMetadata } : {}),
       };
 
       if (editingView) {
@@ -821,26 +796,6 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }: V
                   </span>
                 )}
               </button>
-              <button
-                onClick={() => setActiveTab('advanced')}
-                style={styles({
-                  padding: `${spacing.sm} ${spacing.md}`,
-                  fontSize: ts.body.fontSize,
-                  fontWeight: activeTab === 'advanced' ? ts.label.fontWeight : 'normal',
-                  color: activeTab === 'advanced' ? colors.primary.default : colors.text.muted,
-                  background: 'none',
-                  border: 'none',
-                  borderBottom: activeTab === 'advanced' ? `2px solid ${colors.primary.default}` : '2px solid transparent',
-                  marginBottom: '-1px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: spacing.xs,
-                })}
-              >
-                <Edit2 size={14} />
-                Advanced
-              </button>
               {/* Sharing tab - only show when editing (not creating) */}
               {editingView && (
                 <button
@@ -960,22 +915,6 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }: V
                     })}
                   </div>
                 )}
-              </div>
-            )}
-
-            {/* Advanced Tab */}
-            {activeTab === 'advanced' && (
-              <div style={styles({ display: 'flex', flexDirection: 'column', gap: spacing.md })}>
-                <div style={styles({ color: colors.text.muted, fontSize: ts.bodySmall.fontSize })}>
-                  Optional JSON metadata stored on the view. This is where we can store things like metrics panel configs for sharing.
-                </div>
-                <TextArea
-                  label="View metadata (JSON)"
-                  value={builderMetadataJson}
-                  onChange={setBuilderMetadataJson as any}
-                  placeholder='{\n  "metrics": { ... }\n}'
-                  rows={10}
-                />
               </div>
             )}
 
