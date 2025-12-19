@@ -1,5 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
+// Module-level cache to persist view selection across component remounts
+const viewSelectionCache = new Map(); // tableId -> viewId
 /**
  * Hook for managing table views
  *
@@ -20,13 +22,16 @@ export function useTableView({ tableId, onViewChange }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [available, setAvailable] = useState(true); // Whether the API is available
-    const initialLoadDone = useRef(false);
     const onViewChangeRef = useRef(onViewChange);
+    const hasInitialized = useRef(false);
+    const instanceId = useRef(Math.random().toString(36).slice(2, 8));
+    console.log(`[useTableView ${instanceId.current}] render - tableId=${tableId}, currentView=${currentView?.name}, hasInitialized=${hasInitialized.current}`);
     // Keep ref in sync
     useEffect(() => {
         onViewChangeRef.current = onViewChange;
     }, [onViewChange]);
-    const fetchViews = useCallback(async () => {
+    const fetchViews = useCallback(async (resetToDefault = false) => {
+        console.log(`[useTableView ${instanceId.current}] fetchViews called - resetToDefault=${resetToDefault}, hasInitialized=${hasInitialized.current}`);
         try {
             setLoading(true);
             const res = await fetch(`/api/table-views?tableId=${encodeURIComponent(tableId)}`);
@@ -43,18 +48,29 @@ export function useTableView({ tableId, onViewChange }) {
             }
             const json = await res.json();
             const fetchedViews = json.data || [];
+            console.log(`[useTableView ${instanceId.current}] fetched ${fetchedViews.length} views, resetToDefault=${resetToDefault}`);
             setViews(fetchedViews);
             setAvailable(true);
             setError(null);
-            // On initial load, set the default view
-            if (!initialLoadDone.current && fetchedViews.length > 0) {
-                initialLoadDone.current = true;
+            // On initial load, restore cached view or set default
+            if (resetToDefault && fetchedViews.length > 0) {
+                // Check if we have a cached view selection for this table
+                const cachedViewId = viewSelectionCache.get(tableId);
+                const cachedView = cachedViewId ? fetchedViews.find((v) => v.id === cachedViewId) : null;
                 const defaultView = fetchedViews.find((v) => v.isDefault) || fetchedViews[0];
-                setCurrentView(defaultView);
-                onViewChangeRef.current?.(defaultView);
+                const viewToSelect = cachedView || defaultView;
+                if (cachedView) {
+                    console.log(`[useTableView ${instanceId.current}] Restoring cached view: ${cachedView.name}`);
+                }
+                else {
+                    console.log(`[useTableView ${instanceId.current}] Setting default view: ${defaultView.name}`);
+                }
+                setCurrentView(viewToSelect);
+                onViewChangeRef.current?.(viewToSelect);
             }
         }
         catch (err) {
+            console.error(`[useTableView ${instanceId.current}] error:`, err);
             // Network errors or other issues - mark as unavailable
             if (err?.name === 'TypeError') {
                 setAvailable(false);
@@ -67,9 +83,15 @@ export function useTableView({ tableId, onViewChange }) {
             setLoading(false);
         }
     }, [tableId]);
+    // Only fetch views and set default on FIRST mount
     useEffect(() => {
-        initialLoadDone.current = false;
-        fetchViews();
+        console.log(`[useTableView ${instanceId.current}] useEffect triggered - hasInitialized=${hasInitialized.current}`);
+        // Only reset to default if this is first initialization
+        if (!hasInitialized.current) {
+            hasInitialized.current = true;
+            console.log(`[useTableView ${instanceId.current}] First init - calling fetchViews(true)`);
+            fetchViews(true);
+        }
     }, [fetchViews]);
     const createView = useCallback(async (viewData) => {
         const res = await fetch('/api/table-views', {
@@ -133,8 +155,17 @@ export function useTableView({ tableId, onViewChange }) {
         });
     }, []);
     const selectView = useCallback(async (view) => {
+        console.log(`[useTableView ${instanceId.current}] selectView called - selecting: ${view?.name}`);
         setCurrentView(view);
         onViewChangeRef.current?.(view);
+        // Cache the selection so it persists across remounts
+        if (view) {
+            viewSelectionCache.set(tableId, view.id);
+            console.log(`[useTableView ${instanceId.current}] Cached view selection: ${view.name} for table ${tableId}`);
+        }
+        else {
+            viewSelectionCache.delete(tableId);
+        }
         // Update lastUsedAt if view is selected
         if (view && !view.isSystem) {
             try {
@@ -146,7 +177,9 @@ export function useTableView({ tableId, onViewChange }) {
                 // Ignore errors for usage tracking
             }
         }
-    }, []);
+    }, [tableId]);
+    // Refresh without resetting view
+    const refresh = useCallback(() => fetchViews(false), [fetchViews]);
     return {
         views,
         currentView,
@@ -157,7 +190,7 @@ export function useTableView({ tableId, onViewChange }) {
         updateView,
         deleteView,
         selectView,
-        refresh: fetchViews,
+        refresh,
     };
 }
 //# sourceMappingURL=useTableView.js.map
