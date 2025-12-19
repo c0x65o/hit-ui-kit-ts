@@ -77,6 +77,8 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }) {
     const [sharesLoading, setSharesLoading] = useState(false);
     const [shareEmail, setShareEmail] = useState('');
     const [shareError, setShareError] = useState(null);
+    // When creating a new view (no id yet), queue up share recipients and apply after creation
+    const [pendingShareEmails, setPendingShareEmails] = useState([]);
     // Categorize views
     const systemViews = views.filter((v) => v._category === 'system' || v.isSystem);
     const customViews = views.filter((v) => v._category === 'user' || (!v.isSystem && v._category !== 'shared'));
@@ -107,6 +109,7 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }) {
                 setBuilderColumnVisibility({});
                 setBuilderGroupByField('');
                 setShares([]);
+                setPendingShareEmails([]);
             }
             setActiveTab('filters');
             setShareEmail('');
@@ -197,6 +200,21 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }) {
             }
             else {
                 const newView = await createView(viewData);
+                // Apply any queued shares now that we have a view id
+                if (pendingShareEmails.length > 0) {
+                    const failures = [];
+                    for (const email of pendingShareEmails) {
+                        try {
+                            await addShare(newView.id, 'user', email);
+                        }
+                        catch (err) {
+                            failures.push(`${email}${err?.message ? ` (${err.message})` : ''}`);
+                        }
+                    }
+                    if (failures.length > 0) {
+                        await alertDialog.showAlert(`View created, but some shares failed:\n${failures.join('\n')}`, { variant: 'warning', title: 'Sharing partially failed' });
+                    }
+                }
                 selectView(newView);
             }
             setShowBuilder(false);
@@ -490,7 +508,7 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }) {
                                                 padding: '2px 6px',
                                                 borderRadius: radius.full,
                                                 fontWeight: '600',
-                                            }), children: "1" }))] }), editingView && (_jsxs("button", { onClick: () => setActiveTab('sharing'), style: styles({
+                                            }), children: "1" }))] }), (_jsxs("button", { onClick: () => setActiveTab('sharing'), style: styles({
                                         padding: `${spacing.sm} ${spacing.md}`,
                                         fontSize: ts.body.fontSize,
                                         fontWeight: activeTab === 'sharing' ? ts.label.fontWeight : 'normal',
@@ -503,14 +521,14 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }) {
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: spacing.xs,
-                                    }), children: [_jsx(Share2, { size: 14 }), "Sharing", shares.length > 0 && (_jsx("span", { style: styles({
+                                    }), children: [_jsx(Share2, { size: 14 }), "Sharing", ((editingView ? shares.length : pendingShareEmails.length) > 0) && (_jsx("span", { style: styles({
                                                 backgroundColor: colors.success?.default || '#22c55e',
                                                 color: '#fff',
                                                 fontSize: '11px',
                                                 padding: '2px 6px',
                                                 borderRadius: radius.full,
                                                 fontWeight: '600',
-                                            }), children: shares.length }))] }))] }), activeTab === 'filters' && (_jsxs("div", { style: styles({ display: 'flex', flexDirection: 'column', gap: spacing.md }), children: [_jsx("div", { style: styles({ display: 'flex', justifyContent: 'flex-end' }), children: _jsxs(Button, { variant: "secondary", size: "sm", onClick: handleAddFilter, children: [_jsx(Plus, { size: 14, style: { marginRight: spacing.xs } }), "Add Filter"] }) }), builderFilters.length === 0 ? (_jsx("div", { style: styles({
+                                            }), children: editingView ? shares.length : pendingShareEmails.length }))] }))] }), activeTab === 'filters' && (_jsxs("div", { style: styles({ display: 'flex', flexDirection: 'column', gap: spacing.md }), children: [_jsx("div", { style: styles({ display: 'flex', justifyContent: 'flex-end' }), children: _jsxs(Button, { variant: "secondary", size: "sm", onClick: handleAddFilter, children: [_jsx(Plus, { size: 14, style: { marginRight: spacing.xs } }), "Add Filter"] }) }), builderFilters.length === 0 ? (_jsx("div", { style: styles({
                                         padding: spacing.xl,
                                         textAlign: 'center',
                                         color: colors.text.muted,
@@ -598,7 +616,7 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }) {
                                                 value: c.key,
                                                 label: c.label + (c.type === 'select' && c.options?.some((o) => o.sortOrder !== undefined) ? ' (has sort order)' : ''),
                                             })),
-                                        ], placeholder: "Select field to group by..." }) }), builderGroupByField && (_jsx(Button, { variant: "secondary", size: "sm", onClick: () => setBuilderGroupByField(''), style: { alignSelf: 'flex-start' }, children: "Clear Grouping" }))] })), activeTab === 'sharing' && editingView && (_jsxs("div", { style: styles({ display: 'flex', flexDirection: 'column', gap: spacing.md }), children: [_jsx("p", { style: styles({ fontSize: ts.bodySmall.fontSize, color: colors.text.muted, margin: 0 }), children: "Share this view with other users. They will see it in their \"Shared with me\" section." }), _jsxs("div", { style: styles({
+                                        ], placeholder: "Select field to group by..." }) }), builderGroupByField && (_jsx(Button, { variant: "secondary", size: "sm", onClick: () => setBuilderGroupByField(''), style: { alignSelf: 'flex-start' }, children: "Clear Grouping" }))] })), activeTab === 'sharing' && (_jsxs("div", { style: styles({ display: 'flex', flexDirection: 'column', gap: spacing.md }), children: [_jsx("p", { style: styles({ fontSize: ts.bodySmall.fontSize, color: colors.text.muted, margin: 0 }), children: "Share this view with other users. They will see it in their \"Shared with me\" section." }), _jsxs("div", { style: styles({
                                         display: 'flex',
                                         gap: spacing.sm,
                                         alignItems: 'flex-end',
@@ -606,12 +624,23 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }) {
                                                     setShareEmail(val);
                                                     setShareError(null);
                                                 }, placeholder: "user@example.com" }) }), _jsxs(Button, { variant: "primary", size: "sm", disabled: !shareEmail.trim(), onClick: async () => {
-                                                if (!shareEmail.trim() || !editingView)
+                                                const email = shareEmail.trim();
+                                                if (!email)
                                                     return;
                                                 try {
                                                     setShareError(null);
-                                                    const newShare = await addShare(editingView.id, 'user', shareEmail.trim());
-                                                    setShares((prev) => [...prev, newShare]);
+                                                    if (editingView) {
+                                                        const newShare = await addShare(editingView.id, 'user', email);
+                                                        setShares((prev) => [...prev, newShare]);
+                                                    }
+                                                    else {
+                                                        // Queue share until after view is created
+                                                        setPendingShareEmails((prev) => {
+                                                            const next = new Set(prev);
+                                                            next.add(email);
+                                                            return Array.from(next);
+                                                        });
+                                                    }
                                                     setShareEmail('');
                                                 }
                                                 catch (err) {
@@ -623,22 +652,32 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }) {
                                         color: colors.error?.default || '#ef4444',
                                         borderRadius: radius.md,
                                         fontSize: ts.bodySmall.fontSize,
-                                    }), children: shareError })), sharesLoading ? (_jsx("div", { style: styles({
+                                    }), children: shareError })), editingView && sharesLoading ? (_jsx("div", { style: styles({
                                         padding: spacing.xl,
                                         textAlign: 'center',
                                         color: colors.text.muted,
-                                    }), children: "Loading shares..." })) : shares.length === 0 ? (_jsx("div", { style: styles({
+                                    }), children: "Loading shares..." })) : (editingView ? shares.length : pendingShareEmails.length) === 0 ? (_jsx("div", { style: styles({
                                         padding: spacing.xl,
                                         textAlign: 'center',
                                         color: colors.text.muted,
                                         fontSize: ts.body.fontSize,
                                         border: `1px dashed ${colors.border.subtle}`,
                                         borderRadius: radius.md,
-                                    }), children: "This view is not shared with anyone yet." })) : (_jsxs("div", { style: styles({ display: 'flex', flexDirection: 'column', gap: spacing.sm }), children: [_jsxs("div", { style: styles({
+                                    }), children: editingView ? 'This view is not shared with anyone yet.' : 'This view will not be shared with anyone yet.' })) : (_jsxs("div", { style: styles({ display: 'flex', flexDirection: 'column', gap: spacing.sm }), children: [_jsxs("div", { style: styles({
                                                 fontSize: ts.bodySmall.fontSize,
                                                 fontWeight: ts.label.fontWeight,
                                                 color: colors.text.secondary,
-                                            }), children: ["Shared with ", shares.length, " ", shares.length === 1 ? 'user' : 'people'] }), shares.map((share) => (_jsxs("div", { style: styles({
+                                            }), children: ["Shared with ", (editingView ? shares.length : pendingShareEmails.length), " ", (editingView ? shares.length : pendingShareEmails.length) === 1 ? 'user' : 'people'] }), (editingView ? shares.map((share) => ({
+                                            id: share.id,
+                                            principalType: share.principalType,
+                                            principalId: share.principalId,
+                                            removable: true,
+                                        })) : pendingShareEmails.map((email) => ({
+                                            id: `pending:${email}`,
+                                            principalType: 'user',
+                                            principalId: email,
+                                            removable: true,
+                                        }))).map((item) => (_jsxs("div", { style: styles({
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 gap: spacing.sm,
@@ -646,10 +685,15 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }) {
                                                 backgroundColor: colors.bg.elevated,
                                                 borderRadius: radius.md,
                                                 border: `1px solid ${colors.border.subtle}`,
-                                            }), children: [_jsx(Users, { size: 16, style: { color: colors.text.muted } }), _jsxs("div", { style: { flex: 1 }, children: [_jsx("div", { style: styles({ fontSize: ts.body.fontSize, color: colors.text.primary }), children: share.principalId }), _jsx("div", { style: styles({ fontSize: '11px', color: colors.text.muted }), children: share.principalType === 'user' ? 'User' : share.principalType === 'group' ? 'Group' : 'Role' })] }), _jsx("button", { onClick: async () => {
+                                            }), children: [_jsx(Users, { size: 16, style: { color: colors.text.muted } }), _jsxs("div", { style: { flex: 1 }, children: [_jsx("div", { style: styles({ fontSize: ts.body.fontSize, color: colors.text.primary }), children: item.principalId }), _jsx("div", { style: styles({ fontSize: '11px', color: colors.text.muted }), children: item.principalType === 'user' ? 'User' : item.principalType === 'group' ? 'Group' : 'Role' })] }), _jsx("button", { onClick: async () => {
                                                         try {
-                                                            await removeShare(editingView.id, share.principalType, share.principalId);
-                                                            setShares((prev) => prev.filter((s) => s.id !== share.id));
+                                                            if (editingView) {
+                                                                await removeShare(editingView.id, item.principalType, item.principalId);
+                                                                setShares((prev) => prev.filter((s) => s.id !== item.id));
+                                                            }
+                                                            else {
+                                                                setPendingShareEmails((prev) => prev.filter((e) => e !== item.principalId));
+                                                            }
                                                         }
                                                         catch (err) {
                                                             setShareError(err?.message || 'Failed to remove share');
@@ -662,7 +706,7 @@ export function ViewSelector({ tableId, onViewChange, availableColumns = [] }) {
                                                         color: colors.error?.default || '#ef4444',
                                                         display: 'flex',
                                                         alignItems: 'center',
-                                                    }), title: "Remove share", children: _jsx(X, { size: 16 }) })] }, share.id)))] }))] })), _jsxs("div", { style: styles({
+                                                    }), title: "Remove share", children: _jsx(X, { size: 16 }) })] }, item.id)))] }))] })), _jsxs("div", { style: styles({
                                 display: 'flex',
                                 gap: spacing.md,
                                 justifyContent: 'flex-end',
