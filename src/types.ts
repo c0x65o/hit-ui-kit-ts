@@ -149,6 +149,7 @@ export interface DataTableProps<TData extends Record<string, unknown> = Record<s
   // Refresh
   onRefresh?: () => void;
   refreshing?: boolean;
+  showRefresh?: boolean; // Defaults to true - show refresh button by default
   // Grouping
   groupBy?: GroupConfig<TData>;
   // View system (optional - requires dashboard-shell feature pack)

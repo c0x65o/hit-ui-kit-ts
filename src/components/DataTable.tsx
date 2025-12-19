@@ -81,6 +81,7 @@ export function DataTable<TData extends Record<string, unknown>>({
   // Refresh
   onRefresh,
   refreshing = false,
+  showRefresh = true, // Default to showing refresh button
   // Grouping
   groupBy,
   // View system
@@ -338,7 +339,7 @@ export function DataTable<TData extends Record<string, unknown>>({
       `}</style>
       <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.lg }}>
         {/* Toolbar */}
-      {(searchable || exportable || showColumnVisibility || onRefresh || viewsEnabled) && (
+      {(searchable || exportable || showColumnVisibility || showRefresh || viewsEnabled) && (
         <div style={styles({
           display: 'flex',
           gap: spacing.md,
@@ -402,12 +403,13 @@ export function DataTable<TData extends Record<string, unknown>>({
           )}
 
           <div style={{ display: 'flex', gap: spacing.sm }}>
-            {onRefresh && (
+            {showRefresh && (
               <Button 
                 variant="secondary" 
                 size="sm" 
-                onClick={onRefresh}
-                disabled={refreshing || loading}
+                onClick={onRefresh || (() => {})}
+                disabled={!onRefresh || refreshing || loading}
+                title={!onRefresh ? 'Refresh handler not provided' : undefined}
               >
                 <RefreshCw 
                   size={16} 
