@@ -114,6 +114,9 @@ export function DataTable<TData extends Record<string, unknown>>({
   // Per-group pagination state: { groupKey: currentPage }
   const [groupPages, setGroupPages] = useState<Record<string, number>>({});
   
+  // Track if view system is ready (to prevent flash before view is applied)
+  const [viewSystemReady, setViewSystemReady] = useState(!viewsEnabled);
+  
   // Effective groupBy - view setting takes precedence over prop
   const groupBy = viewGroupBy ? {
     field: viewGroupBy.field,
@@ -364,7 +367,9 @@ export function DataTable<TData extends Record<string, unknown>>({
     document.body.removeChild(link);
   };
 
-  if (loading) {
+  // Show loading state until both data is loaded AND view system is ready
+  // This prevents the flash where data renders before the view is applied
+  if (loading || !viewSystemReady) {
     return (
       <div style={styles({
         display: 'flex',
@@ -409,6 +414,7 @@ export function DataTable<TData extends Record<string, unknown>>({
                 options: col.filterOptions,
                 hideable: col.hideable !== false,
               }))}
+              onReady={setViewSystemReady}
               onViewChange={(view: TableView | null) => {
                 if (onViewChange) {
                   onViewChange(view as any);

@@ -42,6 +42,8 @@ export interface ViewColumnDefinition {
 interface ViewSelectorProps {
     tableId: string;
     onViewChange?: (view: TableView | null) => void;
+    /** Called when view system is ready (views loaded and initial view applied) */
+    onReady?: (ready: boolean) => void;
     /** Column definitions with type info and options for select fields */
     availableColumns?: ViewColumnDefinition[];
 }
@@ -65,6 +67,6 @@ interface ViewSelectorProps {
  * />
  * ```
  */
-export declare function ViewSelector({ tableId, onViewChange, availableColumns }: ViewSelectorProps): import("react/jsx-runtime").JSX.Element | null;
+export declare function ViewSelector({ tableId, onViewChange, onReady, availableColumns }: ViewSelectorProps): import("react/jsx-runtime").JSX.Element | null;
 export {};
 //# sourceMappingURL=ViewSelector.d.ts.map

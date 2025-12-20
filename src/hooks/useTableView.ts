@@ -5,6 +5,46 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 // Module-level cache to persist view selection across component remounts
 const viewSelectionCache = new Map<string, string>(); // tableId -> viewId
 
+// localStorage key for persisting view selection across page refreshes
+const getStorageKey = (tableId: string) => `hit:table-view:${tableId}`;
+
+// Read cached view ID from localStorage (sync, safe for SSR)
+function getCachedViewId(tableId: string): string | null {
+  if (typeof window === 'undefined') return null;
+  
+  // First check in-memory cache (for remounts within same session)
+  const memCached = viewSelectionCache.get(tableId);
+  if (memCached) return memCached;
+  
+  // Then check localStorage (for page refreshes)
+  try {
+    return localStorage.getItem(getStorageKey(tableId));
+  } catch {
+    return null;
+  }
+}
+
+// Save view ID to both caches
+function setCachedViewId(tableId: string, viewId: string | null): void {
+  if (typeof window === 'undefined') return;
+  
+  if (viewId) {
+    viewSelectionCache.set(tableId, viewId);
+    try {
+      localStorage.setItem(getStorageKey(tableId), viewId);
+    } catch {
+      // Ignore localStorage errors
+    }
+  } else {
+    viewSelectionCache.delete(tableId);
+    try {
+      localStorage.removeItem(getStorageKey(tableId));
+    } catch {
+      // Ignore localStorage errors
+    }
+  }
+}
+
 export interface TableViewFilter {
   id?: string;
   field: string;
@@ -78,6 +118,7 @@ export function useTableView({ tableId, onViewChange }: UseTableViewOptions) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [available, setAvailable] = useState(true); // Whether the API is available
+  const [viewReady, setViewReady] = useState(false); // True once initial view is applied
   const onViewChangeRef = useRef(onViewChange);
   const hasInitialized = useRef(false);
   const instanceId = useRef(Math.random().toString(36).slice(2, 8));
@@ -100,6 +141,7 @@ export function useTableView({ tableId, onViewChange }: UseTableViewOptions) {
         setAvailable(false);
         setViews([]);
         setError(null);
+        setViewReady(true); // Mark as ready even if no views available
         return;
       }
       
@@ -117,8 +159,8 @@ export function useTableView({ tableId, onViewChange }: UseTableViewOptions) {
 
       // On initial load, restore cached view or set default
       if (resetToDefault && fetchedViews.length > 0) {
-        // Check if we have a cached view selection for this table
-        const cachedViewId = viewSelectionCache.get(tableId);
+        // Check if we have a cached view selection for this table (localStorage + memory)
+        const cachedViewId = getCachedViewId(tableId);
         const cachedView = cachedViewId ? fetchedViews.find((v: TableView) => v.id === cachedViewId) : null;
         const defaultView = fetchedViews.find((v: TableView) => v.isDefault) || fetchedViews[0];
         
@@ -133,6 +175,9 @@ export function useTableView({ tableId, onViewChange }: UseTableViewOptions) {
         setCurrentView(viewToSelect);
         onViewChangeRef.current?.(viewToSelect);
       }
+      
+      // Mark as ready once initial view is applied
+      setViewReady(true);
     } catch (err) {
       console.error(`[useTableView ${instanceId.current}] error:`, err);
       // Network errors or other issues - mark as unavailable
@@ -141,6 +186,7 @@ export function useTableView({ tableId, onViewChange }: UseTableViewOptions) {
       } else {
         setError(err instanceof Error ? err : new Error('Unknown error'));
       }
+      setViewReady(true); // Mark ready even on error so UI isn't stuck
     } finally {
       setLoading(false);
     }
@@ -237,12 +283,10 @@ export function useTableView({ tableId, onViewChange }: UseTableViewOptions) {
     setCurrentView(view);
     onViewChangeRef.current?.(view);
     
-    // Cache the selection so it persists across remounts
+    // Cache the selection so it persists across remounts AND page refreshes
+    setCachedViewId(tableId, view?.id ?? null);
     if (view) {
-      viewSelectionCache.set(tableId, view.id);
       console.log(`[useTableView ${instanceId.current}] Cached view selection: ${view.name} for table ${tableId}`);
-    } else {
-      viewSelectionCache.delete(tableId);
     }
 
     // Update lastUsedAt if view is selected
@@ -305,6 +349,7 @@ export function useTableView({ tableId, onViewChange }: UseTableViewOptions) {
     loading,
     error,
     available, // Whether the table-views feature pack is installed
+    viewReady, // True once initial view is loaded and applied (use to prevent flash)
     createView,
     updateView,
     deleteView,

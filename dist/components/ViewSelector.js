@@ -54,13 +54,17 @@ export const FILTER_OPERATORS = {
  * />
  * ```
  */
-export function ViewSelector({ tableId, onViewChange, availableColumns = [] }) {
+export function ViewSelector({ tableId, onViewChange, onReady, availableColumns = [] }) {
     const { colors, radius, spacing, textStyles: ts, shadows } = useThemeTokens();
-    const { views, currentView, loading, available, selectView, deleteView, createView, updateView, getShares, addShare, removeShare } = useTableView({
+    const { views, currentView, loading, available, viewReady, selectView, deleteView, createView, updateView, getShares, addShare, removeShare } = useTableView({
         tableId,
         onViewChange,
     });
     const alertDialog = useAlertDialog();
+    // Notify parent when view system is ready
+    useEffect(() => {
+        onReady?.(viewReady);
+    }, [viewReady, onReady]);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [showBuilder, setShowBuilder] = useState(false);
     const [editingView, setEditingView] = useState(null);

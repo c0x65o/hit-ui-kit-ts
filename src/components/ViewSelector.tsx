@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronDown, Plus, Edit2, Trash2, Star, Filter, Trash, Eye, EyeOff, Columns, Layers, Share2, Users, X } from 'lucide-react';
-import { useTableView, type TableView, type TableViewFilter, type TableViewShare } from '../hooks/useTableView.js';
+import { useTableView, type TableView, type TableViewFilter, type TableViewShare } from '../hooks/useTableView';
 import { useThemeTokens } from '../theme/index.js';
 import { useAlertDialog } from '../hooks/useAlertDialog.js';
 import { Button } from './Button.js';
@@ -55,6 +55,8 @@ export interface ViewColumnDefinition {
 interface ViewSelectorProps {
   tableId: string;
   onViewChange?: (view: TableView | null) => void;
+  /** Called when view system is ready (views loaded and initial view applied) */
+  onReady?: (ready: boolean) => void;
   /** Column definitions with type info and options for select fields */
   availableColumns?: ViewColumnDefinition[];
 }
@@ -79,13 +81,18 @@ interface ViewSelectorProps {
  * />
  * ```
  */
-export function ViewSelector({ tableId, onViewChange, availableColumns = [] }: ViewSelectorProps) {
+export function ViewSelector({ tableId, onViewChange, onReady, availableColumns = [] }: ViewSelectorProps) {
   const { colors, radius, spacing, textStyles: ts, shadows } = useThemeTokens();
-  const { views, currentView, loading, available, selectView, deleteView, createView, updateView, getShares, addShare, removeShare } = useTableView({
+  const { views, currentView, loading, available, viewReady, selectView, deleteView, createView, updateView, getShares, addShare, removeShare } = useTableView({
     tableId,
     onViewChange,
   });
   const alertDialog = useAlertDialog();
+  
+  // Notify parent when view system is ready
+  useEffect(() => {
+    onReady?.(viewReady);
+  }, [viewReady, onReady]);
   
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showBuilder, setShowBuilder] = useState(false);

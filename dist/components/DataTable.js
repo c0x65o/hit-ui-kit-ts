@@ -57,6 +57,8 @@ tableId, enableViews, onViewFiltersChange, onViewGroupByChange, onViewChange, })
     const [viewGroupBy, setViewGroupBy] = useState(null);
     // Per-group pagination state: { groupKey: currentPage }
     const [groupPages, setGroupPages] = useState({});
+    // Track if view system is ready (to prevent flash before view is applied)
+    const [viewSystemReady, setViewSystemReady] = useState(!viewsEnabled);
     // Effective groupBy - view setting takes precedence over prop
     const groupBy = viewGroupBy ? {
         field: viewGroupBy.field,
@@ -283,7 +285,9 @@ tableId, enableViews, onViewFiltersChange, onViewGroupByChange, onViewChange, })
         link.click();
         document.body.removeChild(link);
     };
-    if (loading) {
+    // Show loading state until both data is loaded AND view system is ready
+    // This prevents the flash where data renders before the view is applied
+    if (loading || !viewSystemReady) {
         return (_jsx("div", { style: styles({
                 display: 'flex',
                 alignItems: 'center',
@@ -309,7 +313,7 @@ tableId, enableViews, onViewFiltersChange, onViewGroupByChange, onViewChange, })
                                     type: col.filterType || 'string',
                                     options: col.filterOptions,
                                     hideable: col.hideable !== false,
-                                })), onViewChange: (view) => {
+                                })), onReady: setViewSystemReady, onViewChange: (view) => {
                                     if (onViewChange) {
                                         onViewChange(view);
                                     }

@@ -68,6 +68,7 @@ export declare function useTableView({ tableId, onViewChange }: UseTableViewOpti
     loading: boolean;
     error: Error | null;
     available: boolean;
+    viewReady: boolean;
     createView: (viewData: {
         name: string;
         description?: string;
