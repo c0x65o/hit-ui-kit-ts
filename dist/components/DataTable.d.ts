@@ -24,5 +24,5 @@ import type { DataTableProps } from '../types';
  * ```
  */
 export declare function DataTable<TData extends Record<string, unknown>>({ columns, data, searchable, exportable, showColumnVisibility, onRowClick, emptyMessage, loading, pageSize, initialSorting, initialColumnVisibility, total, page: externalPage, onPageChange, manualPagination, onRefresh, refreshing, showRefresh, // Default to showing refresh button
-groupBy: groupByProp, groupPageSize, tableId, enableViews, onViewFiltersChange, onViewGroupByChange, onViewChange, }: DataTableProps<TData>): import("react/jsx-runtime").JSX.Element;
+groupBy: groupByProp, groupPageSize, tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupByChange, onViewSortingChange, onViewChange, }: DataTableProps<TData>): import("react/jsx-runtime").JSX.Element;
 //# sourceMappingURL=DataTable.d.ts.map

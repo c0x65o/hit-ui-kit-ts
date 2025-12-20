@@ -1,15 +1,14 @@
 'use client';
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useState, useEffect } from 'react';
-import { ChevronDown, Plus, Edit2, Trash2, Star, Filter, Trash, Eye, EyeOff, Columns, Layers, Share2, Users, X } from 'lucide-react';
-import { useTableView } from '../hooks/useTableView.js';
+import { ChevronDown, Plus, Edit2, Trash2, Star, Filter, Trash, Eye, EyeOff, Columns, Layers, Share2, Users, X, ArrowUpDown } from 'lucide-react';
+import { useTableView } from '../hooks/useTableView';
 import { useThemeTokens } from '../theme/index.js';
 import { useAlertDialog } from '../hooks/useAlertDialog.js';
 import { Button } from './Button.js';
 import { Modal } from './Modal.js';
 import { AlertDialog } from './AlertDialog.js';
 import { Input } from './Input.js';
-import { TextArea } from './TextArea.js';
 import { Select } from './Select.js';
 import { styles } from './utils.js';
 /**
@@ -63,18 +62,21 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
     const alertDialog = useAlertDialog();
     // Notify parent when view system is ready
     useEffect(() => {
-        onReady?.(viewReady);
-    }, [viewReady, onReady]);
+        // If views API isn't available (feature pack not installed), treat as "ready"
+        // so tables don't get stuck in Loading state waiting for a view that can't load.
+        onReady?.(available ? viewReady : true);
+    }, [available, viewReady, onReady]);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [showBuilder, setShowBuilder] = useState(false);
     const [editingView, setEditingView] = useState(null);
     const [activeTab, setActiveTab] = useState('filters');
     // Builder form state
     const [builderName, setBuilderName] = useState('');
-    const [builderDescription, setBuilderDescription] = useState('');
     const [builderFilters, setBuilderFilters] = useState([]);
+    const [builderFilterMode, setBuilderFilterMode] = useState('all');
     const [builderColumnVisibility, setBuilderColumnVisibility] = useState({});
     const [builderGroupByField, setBuilderGroupByField] = useState('');
+    const [builderSorting, setBuilderSorting] = useState([]);
     const [builderSaving, setBuilderSaving] = useState(false);
     // Share state
     const [shares, setShares] = useState([]);
@@ -94,10 +96,12 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
         if (showBuilder) {
             if (editingView) {
                 setBuilderName(editingView.name);
-                setBuilderDescription(editingView.description || '');
                 setBuilderFilters(editingView.filters || []);
+                const modeRaw = editingView.metadata?.filterMode;
+                setBuilderFilterMode(modeRaw === 'any' ? 'any' : 'all');
                 setBuilderColumnVisibility(editingView.columnVisibility || {});
                 setBuilderGroupByField(editingView.groupBy?.field || '');
+                setBuilderSorting(editingView.sorting || []);
                 // Load shares when editing
                 setSharesLoading(true);
                 getShares(editingView.id)
@@ -107,11 +111,12 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
             }
             else {
                 setBuilderName('');
-                setBuilderDescription('');
                 setBuilderFilters([]);
+                setBuilderFilterMode('all');
                 // Default: all columns visible
                 setBuilderColumnVisibility({});
                 setBuilderGroupByField('');
+                setBuilderSorting([]);
                 setShares([]);
                 setPendingShareEmails([]);
             }
@@ -175,6 +180,21 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
         newFilters[index] = { ...newFilters[index], [field]: value };
         setBuilderFilters(newFilters);
     };
+    const handleAddSort = () => {
+        const firstColumn = availableColumns[0];
+        const nextId = String(firstColumn?.key || 'name');
+        setBuilderSorting((prev) => [...prev, { id: nextId, desc: false }]);
+    };
+    const handleRemoveSort = (index) => {
+        setBuilderSorting((prev) => prev.filter((_, i) => i !== index));
+    };
+    const handleSortChange = (index, patch) => {
+        setBuilderSorting((prev) => {
+            const next = [...prev];
+            next[index] = { ...next[index], ...patch };
+            return next;
+        });
+    };
     const handleSaveView = async () => {
         if (!builderName.trim()) {
             await alertDialog.showAlert('Please enter a view name', {
@@ -192,12 +212,16 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
             if (builderGroupByField) {
                 groupByConfig = { field: builderGroupByField };
             }
+            const baseMetadata = editingView?.metadata && typeof editingView.metadata === 'object'
+                ? editingView.metadata
+                : {};
             const viewData = {
                 name: builderName.trim(),
-                description: builderDescription.trim() || undefined,
                 filters: builderFilters.filter((f) => f.field && f.operator),
                 columnVisibility: hasHiddenColumns ? builderColumnVisibility : undefined,
                 groupBy: groupByConfig,
+                sorting: builderSorting.length > 0 ? builderSorting : undefined,
+                metadata: { ...baseMetadata, filterMode: builderFilterMode },
             };
             if (editingView) {
                 await updateView(editingView.id, viewData);
@@ -452,7 +476,7 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
                                     }, children: [_jsx(Plus, { size: 14 }), _jsx("span", { children: "Create New View" })] }) })] })] })), showBuilder && (_jsx(Modal, { open: showBuilder, onClose: () => {
                     setShowBuilder(false);
                     setEditingView(null);
-                }, title: editingView ? 'Edit View' : 'Create New View', size: "lg", children: _jsxs("div", { style: styles({ display: 'flex', flexDirection: 'column', gap: spacing.lg, padding: spacing.lg }), children: [_jsx(Input, { label: "View Name", value: builderName, onChange: setBuilderName, placeholder: "e.g., Active Projects, High Priority", required: true }), _jsx(TextArea, { label: "Description (optional)", value: builderDescription, onChange: setBuilderDescription, placeholder: "Describe what this view shows", rows: 2 }), _jsxs("div", { style: styles({ display: 'flex', gap: spacing.xs, borderBottom: `1px solid ${colors.border.subtle}` }), children: [_jsxs("button", { onClick: () => setActiveTab('filters'), style: styles({
+                }, title: editingView ? 'Edit View' : 'Create New View', size: "2xl", children: _jsxs("div", { style: styles({ display: 'flex', flexDirection: 'column', gap: spacing.lg, padding: spacing.lg }), children: [_jsx(Input, { label: "View Name", value: builderName, onChange: setBuilderName, placeholder: "e.g., Active Projects, High Priority", required: true }), _jsxs("div", { style: styles({ display: 'flex', gap: spacing.xs, borderBottom: `1px solid ${colors.border.subtle}` }), children: [_jsxs("button", { onClick: () => setActiveTab('filters'), style: styles({
                                         padding: `${spacing.sm} ${spacing.md}`,
                                         fontSize: ts.body.fontSize,
                                         fontWeight: activeTab === 'filters' ? ts.label.fontWeight : 'normal',
@@ -512,7 +536,27 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
                                                 padding: '2px 6px',
                                                 borderRadius: radius.full,
                                                 fontWeight: '600',
-                                            }), children: "1" }))] }), (_jsxs("button", { onClick: () => setActiveTab('sharing'), style: styles({
+                                            }), children: "1" }))] }), _jsxs("button", { onClick: () => setActiveTab('sorting'), style: styles({
+                                        padding: `${spacing.sm} ${spacing.md}`,
+                                        fontSize: ts.body.fontSize,
+                                        fontWeight: activeTab === 'sorting' ? ts.label.fontWeight : 'normal',
+                                        color: activeTab === 'sorting' ? colors.primary.default : colors.text.muted,
+                                        background: 'none',
+                                        border: 'none',
+                                        borderBottom: activeTab === 'sorting' ? `2px solid ${colors.primary.default}` : '2px solid transparent',
+                                        marginBottom: '-1px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: spacing.xs,
+                                    }), children: [_jsx(ArrowUpDown, { size: 14 }), "Sorting", builderSorting.length > 0 && (_jsx("span", { style: styles({
+                                                backgroundColor: colors.info?.default || '#3b82f6',
+                                                color: '#fff',
+                                                fontSize: '11px',
+                                                padding: '2px 6px',
+                                                borderRadius: radius.full,
+                                                fontWeight: '600',
+                                            }), children: builderSorting.length }))] }), (_jsxs("button", { onClick: () => setActiveTab('sharing'), style: styles({
                                         padding: `${spacing.sm} ${spacing.md}`,
                                         fontSize: ts.body.fontSize,
                                         fontWeight: activeTab === 'sharing' ? ts.label.fontWeight : 'normal',
@@ -532,7 +576,10 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
                                                 padding: '2px 6px',
                                                 borderRadius: radius.full,
                                                 fontWeight: '600',
-                                            }), children: editingView ? shares.length : pendingShareEmails.length }))] }))] }), activeTab === 'filters' && (_jsxs("div", { style: styles({ display: 'flex', flexDirection: 'column', gap: spacing.md }), children: [_jsx("div", { style: styles({ display: 'flex', justifyContent: 'flex-end' }), children: _jsxs(Button, { variant: "secondary", size: "sm", onClick: handleAddFilter, children: [_jsx(Plus, { size: 14, style: { marginRight: spacing.xs } }), "Add Filter"] }) }), builderFilters.length === 0 ? (_jsx("div", { style: styles({
+                                            }), children: editingView ? shares.length : pendingShareEmails.length }))] }))] }), activeTab === 'filters' && (_jsxs("div", { style: styles({ display: 'flex', flexDirection: 'column', gap: spacing.md }), children: [_jsxs("div", { style: styles({ display: 'flex', gap: spacing.md, alignItems: 'flex-end' }), children: [_jsx("div", { style: { flex: 1, minWidth: 260 }, children: _jsx(Select, { label: "Match", value: builderFilterMode, onChange: (v) => setBuilderFilterMode(v === 'any' ? 'any' : 'all'), options: [
+                                                    { value: 'all', label: 'All filters (AND)' },
+                                                    { value: 'any', label: 'Any filter (OR)' },
+                                                ] }) }), _jsxs(Button, { variant: "secondary", size: "sm", onClick: handleAddFilter, children: [_jsx(Plus, { size: 14, style: { marginRight: spacing.xs } }), "Add Filter"] })] }), builderFilters.length === 0 ? (_jsx("div", { style: styles({
                                         padding: spacing.xl,
                                         textAlign: 'center',
                                         color: colors.text.muted,
@@ -620,7 +667,33 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
                                                 value: c.key,
                                                 label: c.label + (c.type === 'select' && c.options?.some((o) => o.sortOrder !== undefined) ? ' (has sort order)' : ''),
                                             })),
-                                        ], placeholder: "Select field to group by..." }) }), builderGroupByField && (_jsx(Button, { variant: "secondary", size: "sm", onClick: () => setBuilderGroupByField(''), style: { alignSelf: 'flex-start' }, children: "Clear Grouping" }))] })), activeTab === 'sharing' && (_jsxs("div", { style: styles({ display: 'flex', flexDirection: 'column', gap: spacing.md }), children: [_jsx("p", { style: styles({ fontSize: ts.bodySmall.fontSize, color: colors.text.muted, margin: 0 }), children: "Share this view with other users. They will see it in their \"Shared with me\" section." }), _jsxs("div", { style: styles({
+                                        ], placeholder: "Select field to group by..." }) }), builderGroupByField && (_jsx(Button, { variant: "secondary", size: "sm", onClick: () => setBuilderGroupByField(''), style: { alignSelf: 'flex-start' }, children: "Clear Grouping" }))] })), activeTab === 'sorting' && (_jsxs("div", { style: styles({ display: 'flex', flexDirection: 'column', gap: spacing.md }), children: [_jsx("p", { style: styles({ fontSize: ts.bodySmall.fontSize, color: colors.text.muted, margin: 0 }), children: "Set the default sorting for this view. This affects the initial query/order when the view is selected." }), _jsx("div", { style: styles({ display: 'flex', justifyContent: 'flex-end' }), children: _jsxs(Button, { variant: "secondary", size: "sm", onClick: handleAddSort, children: [_jsx(Plus, { size: 14, style: { marginRight: spacing.xs } }), "Add Sort"] }) }), builderSorting.length === 0 ? (_jsx("div", { style: styles({
+                                        padding: spacing.xl,
+                                        textAlign: 'center',
+                                        color: colors.text.muted,
+                                        fontSize: ts.body.fontSize,
+                                        border: `1px dashed ${colors.border.subtle}`,
+                                        borderRadius: radius.md,
+                                    }), children: "No sorting rules. The table default sorting will be used." })) : (_jsx("div", { style: styles({ display: 'flex', flexDirection: 'column', gap: spacing.sm, overflowY: 'auto', maxHeight: '38vh' }), children: builderSorting.map((sort, index) => (_jsxs("div", { style: styles({
+                                            display: 'flex',
+                                            gap: spacing.sm,
+                                            alignItems: 'center',
+                                            padding: spacing.md,
+                                            backgroundColor: colors.bg.elevated,
+                                            borderRadius: radius.md,
+                                            border: `1px solid ${colors.border.subtle}`,
+                                        }), children: [_jsx(Select, { value: sort.id, onChange: (value) => handleSortChange(index, { id: value }), options: availableColumns.map((c) => ({ value: c.key, label: c.label })), placeholder: "Field" }), _jsx(Select, { value: sort.desc ? 'desc' : 'asc', onChange: (value) => handleSortChange(index, { desc: value === 'desc' }), options: [
+                                                    { value: 'asc', label: 'Ascending' },
+                                                    { value: 'desc', label: 'Descending' },
+                                                ], placeholder: "Direction" }), _jsx("button", { onClick: () => handleRemoveSort(index), style: styles({
+                                                    padding: spacing.sm,
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    cursor: 'pointer',
+                                                    color: colors.error?.default || '#ef4444',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                }), title: "Remove sort", children: _jsx(Trash, { size: 16 }) })] }, `${sort.id}-${index}`))) }))] })), activeTab === 'sharing' && (_jsxs("div", { style: styles({ display: 'flex', flexDirection: 'column', gap: spacing.md }), children: [_jsx("p", { style: styles({ fontSize: ts.bodySmall.fontSize, color: colors.text.muted, margin: 0 }), children: "Share this view with other users. They will see it in their \"Shared with me\" section." }), _jsxs("div", { style: styles({
                                         display: 'flex',
                                         gap: spacing.sm,
                                         alignItems: 'flex-end',

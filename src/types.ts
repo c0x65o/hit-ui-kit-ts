@@ -167,7 +167,11 @@ export interface DataTableProps<TData extends Record<string, unknown> = Record<s
   tableId?: string;
   enableViews?: boolean; // Defaults to true if tableId is provided, false otherwise
   onViewFiltersChange?: (filters: Array<{ field: string; operator: string; value: any }>) => void;
+  /** How to combine view filters in queries: 'all' (AND) or 'any' (OR). Defaults to 'all'. */
+  onViewFilterModeChange?: (mode: 'all' | 'any') => void;
   onViewGroupByChange?: (groupBy: { field: string; sortOrder?: string[] } | null) => void;
+  /** Default sort stored on the view (multi-sort supported). */
+  onViewSortingChange?: (sorting: Array<{ id: string; desc: boolean }>) => void;
   /** Receive the full selected view object (includes metadata) when the user changes views */
   onViewChange?: (view: any | null) => void;
 }
@@ -199,7 +203,7 @@ export interface ModalProps {
   onClose: () => void;
   title?: string;
   description?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
   children: React.ReactNode;
 }
 

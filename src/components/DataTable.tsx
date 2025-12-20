@@ -89,7 +89,9 @@ export function DataTable<TData extends Record<string, unknown>>({
   tableId,
   enableViews,
   onViewFiltersChange,
+  onViewFilterModeChange,
   onViewGroupByChange,
+  onViewSortingChange,
   onViewChange,
 }: DataTableProps<TData>) {
   // Auto-enable views if tableId is provided (unless explicitly disabled)
@@ -369,20 +371,7 @@ export function DataTable<TData extends Record<string, unknown>>({
 
   // Show loading state until both data is loaded AND view system is ready
   // This prevents the flash where data renders before the view is applied
-  if (loading || !viewSystemReady) {
-    return (
-      <div style={styles({
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: spacing['5xl'],
-      })}>
-        <div style={{ color: colors.text.muted }}>
-          Loading...
-        </div>
-      </div>
-    );
-  }
+  const showLoadingState = loading || !viewSystemReady;
 
   const visibleColumns = table.getVisibleFlatColumns();
   const hasData = data.length > 0;
@@ -421,6 +410,18 @@ export function DataTable<TData extends Record<string, unknown>>({
                 }
                 if (onViewFiltersChange) {
                   onViewFiltersChange(view?.filters || []);
+                }
+                if (onViewFilterModeChange) {
+                  const modeRaw = (view as any)?.metadata?.filterMode;
+                  const mode: 'all' | 'any' = modeRaw === 'any' ? 'any' : 'all';
+                  onViewFilterModeChange(mode);
+                }
+                if (onViewSortingChange) {
+                  onViewSortingChange((view?.sorting as any) || []);
+                }
+                // Apply sorting from view (as default sort)
+                if (view?.sorting && Array.isArray(view.sorting)) {
+                  setSorting(view.sorting.map((s: any) => ({ id: String(s?.id || ''), desc: Boolean(s?.desc) })).filter((s: any) => s.id));
                 }
                 // Apply column visibility from view
                 if (view?.columnVisibility) {
@@ -523,7 +524,19 @@ export function DataTable<TData extends Record<string, unknown>>({
 
       {/* Table */}
       <div style={{ overflowX: 'auto', border: `1px solid ${colors.border.subtle}`, borderRadius: spacing.sm }}>
-        {!hasData ? (
+        {showLoadingState ? (
+          <div style={styles({
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: spacing['5xl'],
+            color: colors.text.muted,
+            minHeight: '140px',
+            backgroundColor: colors.bg.surface,
+          })}>
+            Loading...
+          </div>
+        ) : !hasData ? (
           <div style={styles({
             textAlign: 'center',
             padding: spacing['5xl'],
@@ -763,7 +776,7 @@ export function DataTable<TData extends Record<string, unknown>>({
       </div>
 
       {/* Pagination */}
-      {hasData && (manualPagination ? (total !== undefined && total > pageSize) : table.getPageCount() > 1) && (
+      {!showLoadingState && hasData && (manualPagination ? (total !== undefined && total > pageSize) : table.getPageCount() > 1) && (
         <div style={styles({
           display: 'flex',
           alignItems: 'center',

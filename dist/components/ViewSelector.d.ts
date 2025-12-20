@@ -1,4 +1,4 @@
-import { type TableView } from '../hooks/useTableView.js';
+import { type TableView } from '../hooks/useTableView';
 /**
  * Filter operators for table views
  */

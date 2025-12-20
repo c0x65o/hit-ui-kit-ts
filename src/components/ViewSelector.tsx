@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { ChevronDown, Plus, Edit2, Trash2, Star, Filter, Trash, Eye, EyeOff, Columns, Layers, Share2, Users, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChevronDown, Plus, Edit2, Trash2, Star, Filter, Trash, Eye, EyeOff, Columns, Layers, Share2, Users, X, ArrowUpDown } from 'lucide-react';
 import { useTableView, type TableView, type TableViewFilter, type TableViewShare } from '../hooks/useTableView';
 import { useThemeTokens } from '../theme/index.js';
 import { useAlertDialog } from '../hooks/useAlertDialog.js';
@@ -9,7 +9,6 @@ import { Button } from './Button.js';
 import { Modal } from './Modal.js';
 import { AlertDialog } from './AlertDialog.js';
 import { Input } from './Input.js';
-import { TextArea } from './TextArea.js';
 import { Select } from './Select.js';
 import { Checkbox } from './Checkbox.js';
 import { styles } from './utils.js';
@@ -91,20 +90,23 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
   
   // Notify parent when view system is ready
   useEffect(() => {
-    onReady?.(viewReady);
-  }, [viewReady, onReady]);
+    // If views API isn't available (feature pack not installed), treat as "ready"
+    // so tables don't get stuck in Loading state waiting for a view that can't load.
+    onReady?.(available ? viewReady : true);
+  }, [available, viewReady, onReady]);
   
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showBuilder, setShowBuilder] = useState(false);
   const [editingView, setEditingView] = useState<TableView | null>(null);
-  const [activeTab, setActiveTab] = useState<'filters' | 'columns' | 'grouping' | 'sharing'>('filters');
+  const [activeTab, setActiveTab] = useState<'filters' | 'columns' | 'grouping' | 'sorting' | 'sharing'>('filters');
   
   // Builder form state
   const [builderName, setBuilderName] = useState('');
-  const [builderDescription, setBuilderDescription] = useState('');
   const [builderFilters, setBuilderFilters] = useState<TableViewFilter[]>([]);
+  const [builderFilterMode, setBuilderFilterMode] = useState<'all' | 'any'>('all');
   const [builderColumnVisibility, setBuilderColumnVisibility] = useState<Record<string, boolean>>({});
   const [builderGroupByField, setBuilderGroupByField] = useState<string>('');
+  const [builderSorting, setBuilderSorting] = useState<Array<{ id: string; desc: boolean }>>([]);
   const [builderSaving, setBuilderSaving] = useState(false);
   
   // Share state
@@ -128,10 +130,12 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
     if (showBuilder) {
       if (editingView) {
         setBuilderName(editingView.name);
-        setBuilderDescription(editingView.description || '');
         setBuilderFilters(editingView.filters || []);
+        const modeRaw = (editingView.metadata as any)?.filterMode;
+        setBuilderFilterMode(modeRaw === 'any' ? 'any' : 'all');
         setBuilderColumnVisibility(editingView.columnVisibility || {});
         setBuilderGroupByField(editingView.groupBy?.field || '');
+        setBuilderSorting((editingView.sorting as any) || []);
         // Load shares when editing
         setSharesLoading(true);
         getShares(editingView.id)
@@ -140,11 +144,12 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
           .finally(() => setSharesLoading(false));
       } else {
         setBuilderName('');
-        setBuilderDescription('');
         setBuilderFilters([]);
+        setBuilderFilterMode('all');
         // Default: all columns visible
         setBuilderColumnVisibility({});
         setBuilderGroupByField('');
+        setBuilderSorting([]);
         setShares([]);
         setPendingShareEmails([]);
       }
@@ -218,6 +223,24 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
     setBuilderFilters(newFilters);
   };
 
+  const handleAddSort = () => {
+    const firstColumn = availableColumns[0];
+    const nextId = String(firstColumn?.key || 'name');
+    setBuilderSorting((prev) => [...prev, { id: nextId, desc: false }]);
+  };
+
+  const handleRemoveSort = (index: number) => {
+    setBuilderSorting((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSortChange = (index: number, patch: Partial<{ id: string; desc: boolean }>) => {
+    setBuilderSorting((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], ...patch };
+      return next;
+    });
+  };
+
   const handleSaveView = async () => {
     if (!builderName.trim()) {
       await alertDialog.showAlert('Please enter a view name', {
@@ -237,13 +260,19 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
       if (builderGroupByField) {
         groupByConfig = { field: builderGroupByField };
       }
+
+      const baseMetadata =
+        editingView?.metadata && typeof editingView.metadata === 'object'
+          ? (editingView.metadata as Record<string, unknown>)
+          : {};
       
       const viewData = {
         name: builderName.trim(),
-        description: builderDescription.trim() || undefined,
         filters: builderFilters.filter((f) => f.field && f.operator),
         columnVisibility: hasHiddenColumns ? builderColumnVisibility : undefined,
         groupBy: groupByConfig,
+        sorting: builderSorting.length > 0 ? builderSorting : undefined,
+        metadata: { ...baseMetadata, filterMode: builderFilterMode },
       };
 
       if (editingView) {
@@ -704,7 +733,7 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
             setEditingView(null);
           }}
           title={editingView ? 'Edit View' : 'Create New View'}
-          size="lg"
+          size="2xl"
         >
           <div style={styles({ display: 'flex', flexDirection: 'column', gap: spacing.lg, padding: spacing.lg })}>
             {/* Name */}
@@ -714,15 +743,6 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
               onChange={setBuilderName}
               placeholder="e.g., Active Projects, High Priority"
               required
-            />
-
-            {/* Description */}
-            <TextArea
-              label="Description (optional)"
-              value={builderDescription}
-              onChange={setBuilderDescription}
-              placeholder="Describe what this view shows"
-              rows={2}
             />
 
             {/* Tabs */}
@@ -823,6 +843,38 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
                   </span>
                 )}
               </button>
+              <button
+                onClick={() => setActiveTab('sorting')}
+                style={styles({
+                  padding: `${spacing.sm} ${spacing.md}`,
+                  fontSize: ts.body.fontSize,
+                  fontWeight: activeTab === 'sorting' ? ts.label.fontWeight : 'normal',
+                  color: activeTab === 'sorting' ? colors.primary.default : colors.text.muted,
+                  background: 'none',
+                  border: 'none',
+                  borderBottom: activeTab === 'sorting' ? `2px solid ${colors.primary.default}` : '2px solid transparent',
+                  marginBottom: '-1px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: spacing.xs,
+                })}
+              >
+                <ArrowUpDown size={14} />
+                Sorting
+                {builderSorting.length > 0 && (
+                  <span style={styles({
+                    backgroundColor: colors.info?.default || '#3b82f6',
+                    color: '#fff',
+                    fontSize: '11px',
+                    padding: '2px 6px',
+                    borderRadius: radius.full,
+                    fontWeight: '600',
+                  })}>
+                    {builderSorting.length}
+                  </span>
+                )}
+              </button>
               {/* Sharing tab - only show when editing (not creating) */}
               {(
                 <button
@@ -863,7 +915,18 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
             {/* Filters Tab */}
             {activeTab === 'filters' && (
               <div style={styles({ display: 'flex', flexDirection: 'column', gap: spacing.md })}>
-                <div style={styles({ display: 'flex', justifyContent: 'flex-end' })}>
+                <div style={styles({ display: 'flex', gap: spacing.md, alignItems: 'flex-end' })}>
+                  <div style={{ flex: 1, minWidth: 260 }}>
+                    <Select
+                      label="Match"
+                      value={builderFilterMode}
+                      onChange={(v) => setBuilderFilterMode(v === 'any' ? 'any' : 'all')}
+                      options={[
+                        { value: 'all', label: 'All filters (AND)' },
+                        { value: 'any', label: 'Any filter (OR)' },
+                      ]}
+                    />
+                  </div>
                   <Button variant="secondary" size="sm" onClick={handleAddFilter}>
                     <Plus size={14} style={{ marginRight: spacing.xs }} />
                     Add Filter
@@ -885,6 +948,7 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
                   </div>
                 ) : (
                   <div style={styles({ display: 'flex', flexDirection: 'column', gap: spacing.sm })}>
+
                     {builderFilters.map((filter, index) => {
                       const col = availableColumns.find((c) => c.key === filter.field);
                       return (
@@ -1077,6 +1141,85 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
                   >
                     Clear Grouping
                   </Button>
+                )}
+              </div>
+            )}
+
+            {/* Sorting Tab */}
+            {activeTab === 'sorting' && (
+              <div style={styles({ display: 'flex', flexDirection: 'column', gap: spacing.md })}>
+                <p style={styles({ fontSize: ts.bodySmall.fontSize, color: colors.text.muted, margin: 0 })}>
+                  Set the default sorting for this view. This affects the initial query/order when the view is selected.
+                </p>
+
+                <div style={styles({ display: 'flex', justifyContent: 'flex-end' })}>
+                  <Button variant="secondary" size="sm" onClick={handleAddSort}>
+                    <Plus size={14} style={{ marginRight: spacing.xs }} />
+                    Add Sort
+                  </Button>
+                </div>
+
+                {builderSorting.length === 0 ? (
+                  <div
+                    style={styles({
+                      padding: spacing.xl,
+                      textAlign: 'center',
+                      color: colors.text.muted,
+                      fontSize: ts.body.fontSize,
+                      border: `1px dashed ${colors.border.subtle}`,
+                      borderRadius: radius.md,
+                    })}
+                  >
+                    No sorting rules. The table default sorting will be used.
+                  </div>
+                ) : (
+                  <div style={styles({ display: 'flex', flexDirection: 'column', gap: spacing.sm, overflowY: 'auto', maxHeight: '38vh' })}>
+                    {builderSorting.map((sort, index) => (
+                      <div
+                        key={`${sort.id}-${index}`}
+                        style={styles({
+                          display: 'flex',
+                          gap: spacing.sm,
+                          alignItems: 'center',
+                          padding: spacing.md,
+                          backgroundColor: colors.bg.elevated,
+                          borderRadius: radius.md,
+                          border: `1px solid ${colors.border.subtle}`,
+                        })}
+                      >
+                        <Select
+                          value={sort.id}
+                          onChange={(value) => handleSortChange(index, { id: value })}
+                          options={availableColumns.map((c) => ({ value: c.key, label: c.label }))}
+                          placeholder="Field"
+                        />
+                        <Select
+                          value={sort.desc ? 'desc' : 'asc'}
+                          onChange={(value) => handleSortChange(index, { desc: value === 'desc' })}
+                          options={[
+                            { value: 'asc', label: 'Ascending' },
+                            { value: 'desc', label: 'Descending' },
+                          ]}
+                          placeholder="Direction"
+                        />
+                        <button
+                          onClick={() => handleRemoveSort(index)}
+                          style={styles({
+                            padding: spacing.sm,
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: colors.error?.default || '#ef4444',
+                            display: 'flex',
+                            alignItems: 'center',
+                          })}
+                          title="Remove sort"
+                        >
+                          <Trash size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             )}

@@ -40,7 +40,7 @@ onRefresh, refreshing = false, showRefresh = true, // Default to showing refresh
 // Grouping
 groupBy: groupByProp, groupPageSize = 5, 
 // View system
-tableId, enableViews, onViewFiltersChange, onViewGroupByChange, onViewChange, }) {
+tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupByChange, onViewSortingChange, onViewChange, }) {
     // Auto-enable views if tableId is provided (unless explicitly disabled)
     const viewsEnabled = enableViews !== undefined ? enableViews : !!tableId;
     const { colors, textStyles: ts, spacing } = useThemeTokens();
@@ -287,14 +287,7 @@ tableId, enableViews, onViewFiltersChange, onViewGroupByChange, onViewChange, })
     };
     // Show loading state until both data is loaded AND view system is ready
     // This prevents the flash where data renders before the view is applied
-    if (loading || !viewSystemReady) {
-        return (_jsx("div", { style: styles({
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: spacing['5xl'],
-            }), children: _jsx("div", { style: { color: colors.text.muted }, children: "Loading..." }) }));
-    }
+    const showLoadingState = loading || !viewSystemReady;
     const visibleColumns = table.getVisibleFlatColumns();
     const hasData = data.length > 0;
     return (_jsxs(_Fragment, { children: [_jsx("style", { children: `
@@ -319,6 +312,18 @@ tableId, enableViews, onViewFiltersChange, onViewGroupByChange, onViewChange, })
                                     }
                                     if (onViewFiltersChange) {
                                         onViewFiltersChange(view?.filters || []);
+                                    }
+                                    if (onViewFilterModeChange) {
+                                        const modeRaw = view?.metadata?.filterMode;
+                                        const mode = modeRaw === 'any' ? 'any' : 'all';
+                                        onViewFilterModeChange(mode);
+                                    }
+                                    if (onViewSortingChange) {
+                                        onViewSortingChange(view?.sorting || []);
+                                    }
+                                    // Apply sorting from view (as default sort)
+                                    if (view?.sorting && Array.isArray(view.sorting)) {
+                                        setSorting(view.sorting.map((s) => ({ id: String(s?.id || ''), desc: Boolean(s?.desc) })).filter((s) => s.id));
                                     }
                                     // Apply column visibility from view
                                     if (view?.columnVisibility) {
@@ -361,7 +366,15 @@ tableId, enableViews, onViewFiltersChange, onViewGroupByChange, onViewChange, })
                                             label: String(col.columnDef.header),
                                             icon: col.getIsVisible() ? _jsx(Eye, { size: 14 }) : _jsx(EyeOff, { size: 14 }),
                                             onClick: () => col.toggleVisibility(),
-                                        })) })), exportable && hasData && (_jsxs(Button, { variant: "secondary", size: "sm", onClick: handleExport, children: [_jsx(Download, { size: 16, style: { marginRight: spacing.xs } }), "Export CSV"] }))] })] })), _jsx("div", { style: { overflowX: 'auto', border: `1px solid ${colors.border.subtle}`, borderRadius: spacing.sm }, children: !hasData ? (_jsx("div", { style: styles({
+                                        })) })), exportable && hasData && (_jsxs(Button, { variant: "secondary", size: "sm", onClick: handleExport, children: [_jsx(Download, { size: 16, style: { marginRight: spacing.xs } }), "Export CSV"] }))] })] })), _jsx("div", { style: { overflowX: 'auto', border: `1px solid ${colors.border.subtle}`, borderRadius: spacing.sm }, children: showLoadingState ? (_jsx("div", { style: styles({
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: spacing['5xl'],
+                                color: colors.text.muted,
+                                minHeight: '140px',
+                                backgroundColor: colors.bg.surface,
+                            }), children: "Loading..." })) : !hasData ? (_jsx("div", { style: styles({
                                 textAlign: 'center',
                                 padding: spacing['5xl'],
                                 color: colors.text.muted,
@@ -482,7 +495,7 @@ tableId, enableViews, onViewFiltersChange, onViewGroupByChange, onViewChange, })
                                                 textAlign: cell.column.columnDef.meta?.align || 'left',
                                                 fontSize: ts.body.fontSize,
                                                 color: colors.text.secondary,
-                                            }), children: flexRender(cell.column.columnDef.cell, cell.getContext()) }, cell.id))) }, row.id)))) })] })) }), hasData && (manualPagination ? (total !== undefined && total > pageSize) : table.getPageCount() > 1) && (_jsxs("div", { style: styles({
+                                            }), children: flexRender(cell.column.columnDef.cell, cell.getContext()) }, cell.id))) }, row.id)))) })] })) }), !showLoadingState && hasData && (manualPagination ? (total !== undefined && total > pageSize) : table.getPageCount() > 1) && (_jsxs("div", { style: styles({
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'space-between',

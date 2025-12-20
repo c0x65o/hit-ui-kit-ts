@@ -15,6 +15,10 @@ export function Modal({ open, onClose, title, description, size = 'md', children
                 return { maxWidth: '32rem' };
             case 'xl':
                 return { maxWidth: '40rem' };
+            case '2xl':
+                return { maxWidth: '56rem' };
+            case 'full':
+                return { maxWidth: '90vw' };
             default:
                 return { maxWidth: '28rem' };
         }
