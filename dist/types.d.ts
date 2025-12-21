@@ -120,6 +120,10 @@ export interface DataTableProps<TData extends Record<string, unknown> = Record<s
     emptyMessage?: string;
     loading?: boolean;
     pageSize?: number;
+    /** Optional page-size selector options (only shown when onPageSizeChange is provided) */
+    pageSizeOptions?: number[];
+    /** Called when the user selects a different page size */
+    onPageSizeChange?: (pageSize: number) => void;
     initialSorting?: Array<{
         id: string;
         desc?: boolean;

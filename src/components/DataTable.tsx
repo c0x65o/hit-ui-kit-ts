@@ -828,7 +828,7 @@ export function DataTable<TData extends Record<string, unknown>>({
                     // Reset to first page when page size changes
                     setPagination((prev) => ({ ...prev, pageIndex: 0, pageSize: opt }));
                     if (manualPagination && onPageChange) onPageChange(1);
-                    onPageSizeChange(opt);
+                    if (onPageSizeChange) onPageSizeChange(opt);
                   },
                   disabled: opt === pageSize,
                 }))}

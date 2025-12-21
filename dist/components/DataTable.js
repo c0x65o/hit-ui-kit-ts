@@ -32,7 +32,7 @@ import { ViewSelector } from './ViewSelector';
  * />
  * ```
  */
-export function DataTable({ columns, data, searchable = true, exportable = true, showColumnVisibility = true, onRowClick, emptyMessage = 'No data available', loading = false, pageSize = 10, initialSorting, initialColumnVisibility, 
+export function DataTable({ columns, data, searchable = true, exportable = true, showColumnVisibility = true, onRowClick, emptyMessage = 'No data available', loading = false, pageSize = 10, pageSizeOptions = [10, 25, 50, 100], onPageSizeChange, initialSorting, initialColumnVisibility, 
 // Server-side pagination
 total, page: externalPage, onPageChange, manualPagination = false, 
 // Refresh
@@ -290,6 +290,10 @@ tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupBy
     const showLoadingState = loading || !viewSystemReady;
     const visibleColumns = table.getVisibleFlatColumns();
     const hasData = data.length > 0;
+    const showPageSizeSelector = Boolean(onPageSizeChange) && (pageSizeOptions?.length || 0) > 0;
+    const shouldShowPagination = !showLoadingState &&
+        hasData &&
+        (manualPagination ? total !== undefined : table.getPageCount() > 1 || showPageSizeSelector);
     return (_jsxs(_Fragment, { children: [_jsx("style", { children: `
         @keyframes spin {
           from { transform: rotate(0deg); }
@@ -495,12 +499,23 @@ tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupBy
                                                 textAlign: cell.column.columnDef.meta?.align || 'left',
                                                 fontSize: ts.body.fontSize,
                                                 color: colors.text.secondary,
-                                            }), children: flexRender(cell.column.columnDef.cell, cell.getContext()) }, cell.id))) }, row.id)))) })] })) }), !showLoadingState && hasData && (manualPagination ? (total !== undefined && total > pageSize) : table.getPageCount() > 1) && (_jsxs("div", { style: styles({
+                                            }), children: flexRender(cell.column.columnDef.cell, cell.getContext()) }, cell.id))) }, row.id)))) })] })) }), shouldShowPagination && (_jsxs("div", { style: styles({
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'space-between',
                             gap: spacing.md,
                             flexWrap: 'wrap',
-                        }), children: [_jsx("div", { style: { fontSize: ts.bodySmall.fontSize, color: colors.text.muted }, children: manualPagination && total !== undefined ? (_jsxs(_Fragment, { children: ["Showing ", table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1, " to", ' ', Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, total), ' ', "of ", total, " entries"] })) : (_jsxs(_Fragment, { children: ["Showing ", table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1, " to", ' ', Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, table.getFilteredRowModel().rows.length), ' ', "of ", table.getFilteredRowModel().rows.length, " entries"] })) }), _jsxs("div", { style: { display: 'flex', gap: spacing.xs, alignItems: 'center' }, children: [_jsx(Button, { variant: "ghost", size: "sm", onClick: () => table.setPageIndex(0), disabled: !table.getCanPreviousPage(), children: _jsx(ChevronsLeft, { size: 16 }) }), _jsx(Button, { variant: "ghost", size: "sm", onClick: () => table.previousPage(), disabled: !table.getCanPreviousPage(), children: _jsx(ChevronLeft, { size: 16 }) }), _jsxs("div", { style: { fontSize: ts.bodySmall.fontSize, color: colors.text.secondary, padding: `0 ${spacing.md}` }, children: ["Page ", table.getState().pagination.pageIndex + 1, " of ", table.getPageCount()] }), _jsx(Button, { variant: "ghost", size: "sm", onClick: () => table.nextPage(), disabled: !table.getCanNextPage(), children: _jsx(ChevronRight, { size: 16 }) }), _jsx(Button, { variant: "ghost", size: "sm", onClick: () => table.setPageIndex(table.getPageCount() - 1), disabled: !table.getCanNextPage(), children: _jsx(ChevronsRight, { size: 16 }) })] })] }))] })] }));
+                        }), children: [_jsx("div", { style: { fontSize: ts.bodySmall.fontSize, color: colors.text.muted }, children: manualPagination && total !== undefined ? (_jsxs(_Fragment, { children: ["Showing ", table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1, " to", ' ', Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, total), ' ', "of ", total, " entries"] })) : (_jsxs(_Fragment, { children: ["Showing ", table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1, " to", ' ', Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, table.getFilteredRowModel().rows.length), ' ', "of ", table.getFilteredRowModel().rows.length, " entries"] })) }), _jsxs("div", { style: { display: 'flex', gap: spacing.xs, alignItems: 'center' }, children: [showPageSizeSelector && (_jsx(Dropdown, { align: "right", trigger: _jsxs(Button, { variant: "ghost", size: "sm", children: [pageSize, " / page ", _jsx(ChevronDown, { size: 14, style: { marginLeft: spacing.xs } })] }), items: pageSizeOptions.map((opt) => ({
+                                            label: `${opt} / page`,
+                                            onClick: () => {
+                                                // Reset to first page when page size changes
+                                                setPagination((prev) => ({ ...prev, pageIndex: 0, pageSize: opt }));
+                                                if (manualPagination && onPageChange)
+                                                    onPageChange(1);
+                                                if (onPageSizeChange)
+                                                    onPageSizeChange(opt);
+                                            },
+                                            disabled: opt === pageSize,
+                                        })) })), _jsx(Button, { variant: "ghost", size: "sm", onClick: () => table.setPageIndex(0), disabled: !table.getCanPreviousPage(), children: _jsx(ChevronsLeft, { size: 16 }) }), _jsx(Button, { variant: "ghost", size: "sm", onClick: () => table.previousPage(), disabled: !table.getCanPreviousPage(), children: _jsx(ChevronLeft, { size: 16 }) }), _jsxs("div", { style: { fontSize: ts.bodySmall.fontSize, color: colors.text.secondary, padding: `0 ${spacing.md}` }, children: ["Page ", table.getState().pagination.pageIndex + 1, " of ", table.getPageCount()] }), _jsx(Button, { variant: "ghost", size: "sm", onClick: () => table.nextPage(), disabled: !table.getCanNextPage(), children: _jsx(ChevronRight, { size: 16 }) }), _jsx(Button, { variant: "ghost", size: "sm", onClick: () => table.setPageIndex(table.getPageCount() - 1), disabled: !table.getCanNextPage(), children: _jsx(ChevronsRight, { size: 16 }) })] })] }))] })] }));
 }
 //# sourceMappingURL=DataTable.js.map
