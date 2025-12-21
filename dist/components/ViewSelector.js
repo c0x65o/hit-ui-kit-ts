@@ -400,11 +400,23 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
             borderRadius: radius.sm,
         }),
     };
-    return (_jsxs("div", { style: { position: 'relative' }, children: [_jsxs(Button, { variant: "secondary", size: "sm", disabled: loading, onClick: () => setDropdownOpen(!dropdownOpen), children: [_jsx(Filter, { size: 14, style: { marginRight: spacing.xs } }), currentView?.name || 'All Items', _jsx(ChevronDown, { size: 14, style: { marginLeft: spacing.xs } })] }), dropdownOpen && (_jsxs(_Fragment, { children: [_jsx("div", { onClick: () => setDropdownOpen(false), style: styles({ position: 'fixed', inset: 0, zIndex: 40 }) }), _jsxs("div", { style: dropdownStyles.container, children: [views.length === 0 && !loading && (_jsx("div", { style: styles({
+    return (_jsxs("div", { style: { position: 'relative' }, children: [_jsxs(Button, { variant: "secondary", size: "sm", disabled: loading, onClick: () => setDropdownOpen(!dropdownOpen), children: [_jsx(Filter, { size: 14, style: { marginRight: spacing.xs } }), currentView?.name || 'All Items', _jsx(ChevronDown, { size: 14, style: { marginLeft: spacing.xs } })] }), dropdownOpen && (_jsxs(_Fragment, { children: [_jsx("div", { onClick: () => setDropdownOpen(false), style: styles({ position: 'fixed', inset: 0, zIndex: 40 }) }), _jsxs("div", { style: dropdownStyles.container, children: [_jsx("button", { onClick: () => {
+                                    selectView(null);
+                                    setDropdownOpen(false);
+                                }, style: styles({
+                                    ...dropdownStyles.viewItem,
+                                    backgroundColor: currentView === null ? colors.bg.elevated : 'transparent',
+                                    fontWeight: currentView === null ? ts.label.fontWeight : 'normal',
+                                }), onMouseEnter: (e) => {
+                                    e.currentTarget.style.backgroundColor = colors.bg.elevated;
+                                }, onMouseLeave: (e) => {
+                                    e.currentTarget.style.backgroundColor = currentView === null ? colors.bg.elevated : 'transparent';
+                                }, children: _jsx("span", { style: { flex: 1 }, children: "All Items" }) }), views.length === 0 && !loading && (_jsx("div", { style: styles({
                                     padding: spacing.md,
                                     textAlign: 'center',
                                     color: colors.text.muted,
                                     fontSize: ts.bodySmall.fontSize,
+                                    borderTop: `1px solid ${colors.border.subtle}`,
                                 }), children: "No views yet. Create your first view to save filters and column preferences." })), systemViews.length > 0 && (_jsxs(_Fragment, { children: [_jsx("div", { style: dropdownStyles.sectionHeader, children: "Default Views" }), systemViews.map((view) => (_jsxs("button", { onClick: () => {
                                             selectView(view);
                                             setDropdownOpen(false);

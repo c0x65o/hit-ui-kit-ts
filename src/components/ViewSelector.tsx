@@ -528,6 +528,27 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
 
           {/* Dropdown */}
           <div style={dropdownStyles.container}>
+            {/* Always show "All Items" option to allow deselecting views */}
+            <button
+              onClick={() => {
+                selectView(null);
+                setDropdownOpen(false);
+              }}
+              style={styles({
+                ...dropdownStyles.viewItem,
+                backgroundColor: currentView === null ? colors.bg.elevated : 'transparent',
+                fontWeight: currentView === null ? ts.label.fontWeight : 'normal',
+              })}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = colors.bg.elevated;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = currentView === null ? colors.bg.elevated : 'transparent';
+              }}
+            >
+              <span style={{ flex: 1 }}>All Items</span>
+            </button>
+
             {/* Show message when no views exist */}
             {views.length === 0 && !loading && (
               <div style={styles({
@@ -535,6 +556,7 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
                 textAlign: 'center',
                 color: colors.text.muted,
                 fontSize: ts.bodySmall.fontSize,
+                borderTop: `1px solid ${colors.border.subtle}`,
               })}>
                 No views yet. Create your first view to save filters and column preferences.
               </div>
