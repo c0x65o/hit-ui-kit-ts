@@ -174,6 +174,12 @@ export function DataTable<TData extends Record<string, unknown>>({
   // Track if view system is ready (to prevent flash before view is applied)
   const [viewSystemReady, setViewSystemReady] = useState(!viewsEnabled);
 
+  // For now, we only enforce "no best-effort + auto-show" on projects.
+  // Easy to extend later (e.g. CRM) without changing domain feature packs.
+  const strictDynamicColumns = tableId === 'projects';
+  const autoShowDynamicColumns = tableId === 'projects';
+  const [dynamicColumnsError, setDynamicColumnsError] = useState<string | null>(null);
+
   // Segment bucket columns (discovered via metrics-core, keyed by columnKey)
   const [bucketColumns, setBucketColumns] = useState<Record<string, BucketColumnDef>>({});
   const [bucketColumnsLoaded, setBucketColumnsLoaded] = useState(false);
@@ -209,12 +215,16 @@ export function DataTable<TData extends Record<string, unknown>>({
     let cancelled = false;
     (async () => {
       try {
+        if (!cancelled && strictDynamicColumns) setDynamicColumnsError(null);
         const res = await fetch(`/api/metrics/segments/table-buckets?tableId=${encodeURIComponent(tableId)}`, { method: 'GET' });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) {
           if (!cancelled) {
             setBucketColumns({});
             setBucketColumnsLoaded(true);
+            if (strictDynamicColumns) {
+              setDynamicColumnsError((prev) => prev || (json?.error ? String(json.error) : `Failed to load bucket columns (${res.status})`));
+            }
           }
           return;
         }
@@ -249,6 +259,7 @@ export function DataTable<TData extends Record<string, unknown>>({
         if (!cancelled) {
           setBucketColumns({});
           setBucketColumnsLoaded(true);
+          if (strictDynamicColumns) setDynamicColumnsError((prev) => prev || 'Failed to load bucket columns');
         }
       }
     })();
@@ -263,12 +274,16 @@ export function DataTable<TData extends Record<string, unknown>>({
     let cancelled = false;
     (async () => {
       try {
+        if (!cancelled && strictDynamicColumns) setDynamicColumnsError(null);
         const res = await fetch(`/api/metrics/segments/table-metrics?tableId=${encodeURIComponent(tableId)}`, { method: 'GET' });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) {
           if (!cancelled) {
             setMetricColumns({});
             setMetricColumnsLoaded(true);
+            if (strictDynamicColumns) {
+              setDynamicColumnsError((prev) => prev || (json?.error ? String(json.error) : `Failed to load metric columns (${res.status})`));
+            }
           }
           return;
         }
@@ -308,6 +323,7 @@ export function DataTable<TData extends Record<string, unknown>>({
         if (!cancelled) {
           setMetricColumns({});
           setMetricColumnsLoaded(true);
+          if (strictDynamicColumns) setDynamicColumnsError((prev) => prev || 'Failed to load metric columns');
         }
       }
     })();
@@ -316,7 +332,7 @@ export function DataTable<TData extends Record<string, unknown>>({
     };
   }, [viewsEnabled, tableId]);
 
-  // Ensure newly discovered bucket columns default to hidden unless already specified.
+  // Ensure newly discovered bucket columns default to hidden (or visible for strict tables) unless already specified.
   useEffect(() => {
     if (!bucketColumnsLoaded) return;
     const keys = Object.keys(bucketColumns || {});
@@ -326,7 +342,7 @@ export function DataTable<TData extends Record<string, unknown>>({
       let changed = false;
       for (const k of keys) {
         if (next[k] === undefined) {
-          next[k] = false;
+          next[k] = autoShowDynamicColumns ? true : false;
           changed = true;
         }
       }
@@ -334,7 +350,7 @@ export function DataTable<TData extends Record<string, unknown>>({
     });
   }, [bucketColumnsLoaded, bucketColumns]);
 
-  // Ensure newly discovered metric columns default to hidden unless already specified.
+  // Ensure newly discovered metric columns default to hidden (or visible for strict tables) unless already specified.
   useEffect(() => {
     if (!metricColumnsLoaded) return;
     const keys = Object.keys(metricColumns || {});
@@ -344,7 +360,7 @@ export function DataTable<TData extends Record<string, unknown>>({
       let changed = false;
       for (const k of keys) {
         if (next[k] === undefined) {
-          next[k] = false;
+          next[k] = autoShowDynamicColumns ? true : false;
           changed = true;
         }
       }
@@ -916,6 +932,21 @@ export function DataTable<TData extends Record<string, unknown>>({
         }
       `}</style>
       <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.lg }}>
+        {dynamicColumnsError && (
+          <div
+            style={styles({
+              padding: `${spacing.sm} ${spacing.md}`,
+              borderRadius: radius.md,
+              border: `1px solid ${colors.border.subtle}`,
+              background: colors.bg.muted,
+              color: colors.text.primary,
+              fontSize: 13,
+            })}
+          >
+            <strong style={{ marginRight: 8 }}>Dynamic columns error:</strong>
+            {dynamicColumnsError}
+          </div>
+        )}
         {/* Toolbar */}
       {(searchable || exportable || showColumnVisibility || showRefresh || viewsEnabled) && (
         <div style={styles({
