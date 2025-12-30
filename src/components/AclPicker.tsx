@@ -26,6 +26,8 @@ export function AclPicker({
   validateEntry,
   fetchPrincipals,
   disabled = false,
+  confirmRemove = true,
+  confirmRemoveMessage,
   error: externalError = null,
 }: AclPickerProps) {
   const { Button, Alert, Spinner, Select, Badge, Checkbox } = useUi();
@@ -132,6 +134,17 @@ export function AclPicker({
     setSelectedHierarchicalLevel('');
   }, [selectedPrincipalType]);
 
+  // If there's only one permission option, auto-select it to reduce clicks
+  useEffect(() => {
+    if (!showAddForm) return;
+    if (config.mode === 'hierarchical' && config.hierarchicalPermissions && config.hierarchicalPermissions.length === 1) {
+      setSelectedHierarchicalLevel(config.hierarchicalPermissions[0].key);
+    }
+    if (config.mode === 'granular' && config.granularPermissions && config.granularPermissions.length === 1) {
+      setSelectedPermissions([config.granularPermissions[0].key]);
+    }
+  }, [showAddForm, config.mode, config.hierarchicalPermissions, config.granularPermissions]);
+
   // Get available principal types
   const availablePrincipalTypes = useMemo(() => {
     const types: Array<{ value: PrincipalType; label: string }> = [];
@@ -174,23 +187,33 @@ export function AclPicker({
 
     let permissions: string[] = [];
     if (config.mode === 'hierarchical') {
-      if (!selectedHierarchicalLevel) {
+      const onlyLevelKey =
+        config.hierarchicalPermissions && config.hierarchicalPermissions.length === 1
+          ? config.hierarchicalPermissions[0].key
+          : '';
+      const levelKey = selectedHierarchicalLevel || onlyLevelKey;
+      if (!levelKey) {
         setError('Please select a permission level');
         return;
       }
       // Find the hierarchical permission and get its includes or use the key
-      const level = config.hierarchicalPermissions?.find(p => p.key === selectedHierarchicalLevel);
+      const level = config.hierarchicalPermissions?.find(p => p.key === levelKey);
       if (level?.includes && level.includes.length > 0) {
         permissions = level.includes;
       } else {
-        permissions = [selectedHierarchicalLevel];
+        permissions = [levelKey];
       }
     } else {
-      if (selectedPermissions.length === 0) {
+      const onlyPermKey =
+        config.granularPermissions && config.granularPermissions.length === 1
+          ? config.granularPermissions[0].key
+          : '';
+      const perms = selectedPermissions.length > 0 ? selectedPermissions : (onlyPermKey ? [onlyPermKey] : []);
+      if (perms.length === 0) {
         setError('Please select at least one permission');
         return;
       }
-      permissions = selectedPermissions;
+      permissions = perms;
     }
 
     const newEntry: Omit<AclEntry, 'id'> = {
@@ -226,8 +249,9 @@ export function AclPicker({
   }
 
   async function handleRemove(entry: AclEntry) {
-    if (!confirm('Are you sure you want to remove this access?')) {
-      return;
+    if (confirmRemove) {
+      const msg = confirmRemoveMessage || 'Are you sure you want to remove this access?';
+      if (!confirm(msg)) return;
     }
 
     try {
@@ -336,7 +360,7 @@ export function AclPicker({
                 )}
               </div>
 
-              {config.mode === 'hierarchical' && config.hierarchicalPermissions && (
+              {config.mode === 'hierarchical' && config.hierarchicalPermissions && config.hierarchicalPermissions.length > 1 && (
                 <div>
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }}>
                     Permissions
@@ -353,7 +377,7 @@ export function AclPicker({
                 </div>
               )}
 
-              {config.mode === 'granular' && config.granularPermissions && (
+              {config.mode === 'granular' && config.granularPermissions && config.granularPermissions.length > 1 && (
                 <div>
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem' }}>
                     Permissions
@@ -394,8 +418,8 @@ export function AclPicker({
                 <Button
                   onClick={handleAdd}
                   disabled={saving || !selectedPrincipalId.trim() || 
-                    (config.mode === 'hierarchical' && !selectedHierarchicalLevel) ||
-                    (config.mode === 'granular' && selectedPermissions.length === 0)}
+                    (config.mode === 'hierarchical' && (config.hierarchicalPermissions?.length || 0) > 1 && !selectedHierarchicalLevel) ||
+                    (config.mode === 'granular' && (config.granularPermissions?.length || 0) > 1 && selectedPermissions.length === 0)}
                   size="sm"
                 >
                   {saving ? 'Adding...' : addButtonLabel}
