@@ -1,6 +1,6 @@
 'use client';
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useReactTable, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, flexRender, } from '@tanstack/react-table';
 import { ChevronDown, ChevronUp, ChevronsUpDown, Download, Eye, EyeOff, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCw, ChevronRight as ChevronRightIcon, } from 'lucide-react';
 import { useThemeTokens } from '../theme/index.js';
@@ -87,10 +87,49 @@ tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupBy
     });
     // View-based groupBy (overrides prop when set by view)
     const [viewGroupBy, setViewGroupBy] = useState(null);
+    // Persist per-table+per-view "modifiers" (column visibility + sorting) in localStorage.
+    // This is intentionally local-only so it can apply on top of public/system/shared views.
+    const currentViewIdRef = useRef(null); // null = "All Items"
+    const hasInitializedSelectionRef = useRef(false);
+    const getModifiersKey = (tid, vid) => `hit:table-modifiers:${tid}:${vid ?? '__all__'}`;
+    const readModifiers = (tid, vid) => {
+        if (typeof window === 'undefined')
+            return null;
+        try {
+            const raw = localStorage.getItem(getModifiersKey(tid, vid));
+            if (!raw)
+                return null;
+            const parsed = JSON.parse(raw);
+            return parsed && typeof parsed === 'object' ? parsed : null;
+        }
+        catch {
+            return null;
+        }
+    };
+    const writeModifiers = (tid, vid, mods) => {
+        if (typeof window === 'undefined')
+            return;
+        try {
+            localStorage.setItem(getModifiersKey(tid, vid), JSON.stringify({ sorting: mods.sorting, columnVisibility: mods.columnVisibility, updatedAt: new Date().toISOString() }));
+        }
+        catch {
+            // Ignore localStorage failures
+        }
+    };
     // Per-group pagination state: { groupKey: currentPage }
     const [groupPages, setGroupPages] = useState({});
     // Track if view system is ready (to prevent flash before view is applied)
     const [viewSystemReady, setViewSystemReady] = useState(!viewsEnabled);
+    // Persist modifiers whenever the user changes sorting/columns after initial view selection.
+    useEffect(() => {
+        if (!viewsEnabled || !tableId)
+            return;
+        if (!viewSystemReady)
+            return;
+        if (!hasInitializedSelectionRef.current)
+            return;
+        writeModifiers(tableId, currentViewIdRef.current, { sorting, columnVisibility });
+    }, [viewsEnabled, tableId, viewSystemReady, sorting, columnVisibility]);
     // For now, we only enforce "no best-effort + auto-show" on projects.
     // Easy to extend later (e.g. CRM) without changing domain feature packs.
     const strictDynamicColumns = tableId === 'projects';
@@ -296,12 +335,18 @@ tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupBy
         const visibleBucketKeys = Object.keys(bucketColumns || {}).filter((k) => columnVisibility?.[k] === true);
         if (!visibleBucketKeys.length)
             return;
+        const bucketGroupMetaLocal = groupBy && tableId ? bucketColumns[groupBy.field] : null;
+        const isServerBucketGroupLocal = Boolean(groupBy && tableId && bucketGroupMetaLocal && bucketGroupMetaLocal.entityKind);
+        const serverRows = isServerBucketGroupLocal
+            ? Object.values(bucketGroupBySeg || {}).flatMap((g) => (Array.isArray(g?.rows) ? g.rows : []))
+            : [];
+        const sourceRows = isServerBucketGroupLocal ? serverRows : (data || []);
         const MAX = 500;
         const idsByCol = {};
         for (const k of visibleBucketKeys) {
             const meta = bucketColumns[k];
             const idField = meta?.entityIdField || 'id';
-            const ids = (data || [])
+            const ids = (sourceRows || [])
                 .map((row) => String(row?.[idField] ?? '').trim())
                 .filter(Boolean)
                 .slice(0, MAX);
@@ -347,7 +392,7 @@ tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupBy
         return () => {
             cancelled = true;
         };
-    }, [tableId, data, bucketColumns, columnVisibility]);
+    }, [tableId, data, bucketColumns, columnVisibility, groupBy?.field, bucketGroupBySeg]);
     // Evaluate metric values for visible metric columns on current page rows (best-effort, non-sorting).
     useEffect(() => {
         if (!tableId)
@@ -355,12 +400,18 @@ tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupBy
         const visibleMetricKeys = Object.keys(metricColumns || {}).filter((k) => columnVisibility?.[k] === true);
         if (!visibleMetricKeys.length)
             return;
+        const bucketGroupMetaLocal = groupBy && tableId ? bucketColumns[groupBy.field] : null;
+        const isServerBucketGroupLocal = Boolean(groupBy && tableId && bucketGroupMetaLocal && bucketGroupMetaLocal.entityKind);
+        const serverRows = isServerBucketGroupLocal
+            ? Object.values(bucketGroupBySeg || {}).flatMap((g) => (Array.isArray(g?.rows) ? g.rows : []))
+            : [];
+        const sourceRows = isServerBucketGroupLocal ? serverRows : (data || []);
         const MAX = 500;
         const idsByCol = {};
         for (const k of visibleMetricKeys) {
             const meta = metricColumns[k];
             const idField = meta?.entityIdField || 'id';
-            const ids = (data || [])
+            const ids = (sourceRows || [])
                 .map((row) => String(row?.[idField] ?? '').trim())
                 .filter(Boolean)
                 .slice(0, MAX);
@@ -406,7 +457,7 @@ tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupBy
         return () => {
             cancelled = true;
         };
-    }, [tableId, data, metricColumns, columnVisibility]);
+    }, [tableId, data, metricColumns, columnVisibility, groupBy?.field, bucketColumns, bucketGroupBySeg]);
     const augmentedData = useMemo(() => {
         const bucketKeys = Object.keys(bucketColumns || {});
         const metricKeys = Object.keys(metricColumns || {});
@@ -856,6 +907,8 @@ tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupBy
                                         hideable: true,
                                     })),
                                 ], onReady: setViewSystemReady, onViewChange: (view) => {
+                                    currentViewIdRef.current = view?.id ?? null;
+                                    hasInitializedSelectionRef.current = true;
                                     if (onViewChange) {
                                         onViewChange(view);
                                     }
@@ -870,14 +923,22 @@ tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupBy
                                     if (onViewSortingChange) {
                                         onViewSortingChange(view?.sorting || []);
                                     }
-                                    // Apply sorting from view (as default sort)
-                                    if (view?.sorting && Array.isArray(view.sorting)) {
-                                        setSorting(view.sorting.map((s) => ({ id: String(s?.id || ''), desc: Boolean(s?.desc) })).filter((s) => s.id));
-                                    }
-                                    // Apply column visibility from view
-                                    if (view?.columnVisibility) {
-                                        setColumnVisibility(view.columnVisibility);
-                                    }
+                                    // Apply view defaults, then overlay local modifiers (per-view).
+                                    const baseSorting = view?.sorting && Array.isArray(view.sorting)
+                                        ? view.sorting
+                                            .map((s) => ({ id: String(s?.id || ''), desc: Boolean(s?.desc) }))
+                                            .filter((s) => s.id)
+                                        : initialSorting?.map((s) => ({ id: s.id, desc: s.desc ?? false })) || [];
+                                    const baseColumnVisibility = view?.columnVisibility ?? (initialColumnVisibility || {});
+                                    const mods = readModifiers(tableId, view?.id ?? null);
+                                    if (mods?.sorting)
+                                        setSorting(mods.sorting);
+                                    else
+                                        setSorting(baseSorting);
+                                    if (mods?.columnVisibility)
+                                        setColumnVisibility(mods.columnVisibility);
+                                    else
+                                        setColumnVisibility(baseColumnVisibility);
                                     // Apply groupBy from view
                                     const newGroupBy = view?.groupBy || null;
                                     setViewGroupBy(newGroupBy);
@@ -1033,7 +1094,34 @@ tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupBy
                                                         const colId = String(col?.id || '');
                                                         const baseCol = columns.find((c) => c?.key === colId) || null;
                                                         const value = rowData?.[colId];
-                                                        const content = baseCol?.render ? baseCol.render(value, rowData, idx) : (value == null ? '' : String(value));
+                                                        const content = (() => {
+                                                            // 1) Explicit column render (feature-pack provided)
+                                                            if (baseCol?.render)
+                                                                return baseCol.render(value, rowData, idx);
+                                                            // 2) Dynamic bucket columns (segment bucket label)
+                                                            const bucketMeta = bucketColumns?.[colId] || null;
+                                                            if (bucketMeta) {
+                                                                const idField = bucketMeta?.entityIdField || 'id';
+                                                                const id = String(rowData?.[idField] ?? rowData?.id ?? '').trim();
+                                                                const label = id ? bucketValues?.[colId]?.[id] : '';
+                                                                if (label)
+                                                                    return String(label);
+                                                                // If the server already included a value, fall back to it
+                                                                return value == null ? '' : String(value);
+                                                            }
+                                                            // 3) Dynamic metric columns (computed metric value)
+                                                            const metricMeta = metricColumns?.[colId] || null;
+                                                            if (metricMeta) {
+                                                                const idField = metricMeta?.entityIdField || 'id';
+                                                                const id = String(rowData?.[idField] ?? rowData?.id ?? '').trim();
+                                                                const v = id ? metricValues?.[colId]?.[id] : undefined;
+                                                                if (v === undefined || v === null)
+                                                                    return '';
+                                                                return formatMetricValue(v, metricMeta);
+                                                            }
+                                                            // 4) Default: stringify
+                                                            return value == null ? '' : String(value);
+                                                        })();
                                                         return (_jsx("td", { style: styles({
                                                                 padding: `${spacing.md} ${spacing.lg}`,
                                                                 textAlign: col.columnDef.meta?.align || 'left',

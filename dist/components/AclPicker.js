@@ -12,7 +12,7 @@ import { usePrincipals } from '@hit/feature-pack-auth-core';
  * Provides a reusable interface for managing access control lists.
  * Supports both hierarchical and granular permission modes.
  */
-export function AclPicker({ config, entries, loading: externalLoading = false, onAdd, onRemove, onUpdate, filterPrincipals, validateEntry, fetchPrincipals, disabled = false, error: externalError = null, }) {
+export function AclPicker({ config, entries, loading: externalLoading = false, onAdd, onRemove, onUpdate, filterPrincipals, validateEntry, fetchPrincipals, disabled = false, confirmRemove = true, confirmRemoveMessage, error: externalError = null, }) {
     const { Button, Alert, Spinner, Select, Badge, Checkbox } = useUi();
     const [showAddForm, setShowAddForm] = useState(false);
     const [selectedPrincipalType, setSelectedPrincipalType] = useState('user');
@@ -107,6 +107,17 @@ export function AclPicker({ config, entries, loading: externalLoading = false, o
         setSelectedPermissions([]);
         setSelectedHierarchicalLevel('');
     }, [selectedPrincipalType]);
+    // If there's only one permission option, auto-select it to reduce clicks
+    useEffect(() => {
+        if (!showAddForm)
+            return;
+        if (config.mode === 'hierarchical' && config.hierarchicalPermissions && config.hierarchicalPermissions.length === 1) {
+            setSelectedHierarchicalLevel(config.hierarchicalPermissions[0].key);
+        }
+        if (config.mode === 'granular' && config.granularPermissions && config.granularPermissions.length === 1) {
+            setSelectedPermissions([config.granularPermissions[0].key]);
+        }
+    }, [showAddForm, config.mode, config.hierarchicalPermissions, config.granularPermissions]);
     // Get available principal types
     const availablePrincipalTypes = useMemo(() => {
         const types = [];
@@ -145,25 +156,33 @@ export function AclPicker({ config, entries, loading: externalLoading = false, o
         }
         let permissions = [];
         if (config.mode === 'hierarchical') {
-            if (!selectedHierarchicalLevel) {
+            const onlyLevelKey = config.hierarchicalPermissions && config.hierarchicalPermissions.length === 1
+                ? config.hierarchicalPermissions[0].key
+                : '';
+            const levelKey = selectedHierarchicalLevel || onlyLevelKey;
+            if (!levelKey) {
                 setError('Please select a permission level');
                 return;
             }
             // Find the hierarchical permission and get its includes or use the key
-            const level = config.hierarchicalPermissions?.find(p => p.key === selectedHierarchicalLevel);
+            const level = config.hierarchicalPermissions?.find(p => p.key === levelKey);
             if (level?.includes && level.includes.length > 0) {
                 permissions = level.includes;
             }
             else {
-                permissions = [selectedHierarchicalLevel];
+                permissions = [levelKey];
             }
         }
         else {
-            if (selectedPermissions.length === 0) {
+            const onlyPermKey = config.granularPermissions && config.granularPermissions.length === 1
+                ? config.granularPermissions[0].key
+                : '';
+            const perms = selectedPermissions.length > 0 ? selectedPermissions : (onlyPermKey ? [onlyPermKey] : []);
+            if (perms.length === 0) {
                 setError('Please select at least one permission');
                 return;
             }
-            permissions = selectedPermissions;
+            permissions = perms;
         }
         const newEntry = {
             principalType: selectedPrincipalType,
@@ -196,8 +215,10 @@ export function AclPicker({ config, entries, loading: externalLoading = false, o
         }
     }
     async function handleRemove(entry) {
-        if (!confirm('Are you sure you want to remove this access?')) {
-            return;
+        if (confirmRemove) {
+            const msg = confirmRemoveMessage || 'Are you sure you want to remove this access?';
+            if (!confirm(msg))
+                return;
         }
         try {
             setSaving(true);
@@ -240,10 +261,10 @@ export function AclPicker({ config, entries, loading: externalLoading = false, o
                             display: 'flex',
                             flexDirection: 'column',
                             gap: '1rem',
-                        }, children: [_jsx("h4", { style: { fontWeight: 500 }, children: "Add New Access" }), availablePrincipalTypes.length > 1 && (_jsxs("div", { children: [_jsx("label", { style: { display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }, children: "Principal Type" }), _jsx(Select, { value: selectedPrincipalType, onChange: (value) => setSelectedPrincipalType(value), options: availablePrincipalTypes })] })), _jsxs("div", { children: [_jsx("label", { style: { display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }, children: availablePrincipalTypes.find(t => t.value === selectedPrincipalType)?.label || 'Principal' }), principalsLoadingState ? (_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: '0.5rem' }, children: [_jsx(Spinner, { size: "sm" }), _jsx("span", { style: { fontSize: '0.875rem', color: 'var(--text-muted, #6b7280)' }, children: "Loading options..." })] })) : (_jsx(Select, { value: selectedPrincipalId, onChange: (value) => setSelectedPrincipalId(value), options: principalOptions, placeholder: `Select ${availablePrincipalTypes.find(t => t.value === selectedPrincipalType)?.label || 'principal'}` }))] }), config.mode === 'hierarchical' && config.hierarchicalPermissions && (_jsxs("div", { children: [_jsx("label", { style: { display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }, children: "Permissions" }), _jsx(Select, { value: selectedHierarchicalLevel, onChange: (value) => setSelectedHierarchicalLevel(value), options: config.hierarchicalPermissions.map(p => ({
+                        }, children: [_jsx("h4", { style: { fontWeight: 500 }, children: "Add New Access" }), availablePrincipalTypes.length > 1 && (_jsxs("div", { children: [_jsx("label", { style: { display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }, children: "Principal Type" }), _jsx(Select, { value: selectedPrincipalType, onChange: (value) => setSelectedPrincipalType(value), options: availablePrincipalTypes })] })), _jsxs("div", { children: [_jsx("label", { style: { display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }, children: availablePrincipalTypes.find(t => t.value === selectedPrincipalType)?.label || 'Principal' }), principalsLoadingState ? (_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: '0.5rem' }, children: [_jsx(Spinner, { size: "sm" }), _jsx("span", { style: { fontSize: '0.875rem', color: 'var(--text-muted, #6b7280)' }, children: "Loading options..." })] })) : (_jsx(Select, { value: selectedPrincipalId, onChange: (value) => setSelectedPrincipalId(value), options: principalOptions, placeholder: `Select ${availablePrincipalTypes.find(t => t.value === selectedPrincipalType)?.label || 'principal'}` }))] }), config.mode === 'hierarchical' && config.hierarchicalPermissions && config.hierarchicalPermissions.length > 1 && (_jsxs("div", { children: [_jsx("label", { style: { display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }, children: "Permissions" }), _jsx(Select, { value: selectedHierarchicalLevel, onChange: (value) => setSelectedHierarchicalLevel(value), options: config.hierarchicalPermissions.map(p => ({
                                             value: p.key,
                                             label: p.description ? `${p.label} - ${p.description}` : p.label,
-                                        })), placeholder: "Select permission level" })] })), config.mode === 'granular' && config.granularPermissions && (_jsxs("div", { children: [_jsx("label", { style: { display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem' }, children: "Permissions" }), _jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: '0.5rem' }, children: config.granularPermissions.map(perm => (_jsx(Checkbox, { label: perm.description ? `${perm.label} - ${perm.description}` : perm.label, checked: selectedPermissions.includes(perm.key), onChange: (checked) => {
+                                        })), placeholder: "Select permission level" })] })), config.mode === 'granular' && config.granularPermissions && config.granularPermissions.length > 1 && (_jsxs("div", { children: [_jsx("label", { style: { display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem' }, children: "Permissions" }), _jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: '0.5rem' }, children: config.granularPermissions.map(perm => (_jsx(Checkbox, { label: perm.description ? `${perm.label} - ${perm.description}` : perm.label, checked: selectedPermissions.includes(perm.key), onChange: (checked) => {
                                                 if (checked) {
                                                     setSelectedPermissions([...selectedPermissions, perm.key]);
                                                 }
@@ -257,8 +278,8 @@ export function AclPicker({ config, entries, loading: externalLoading = false, o
                                             setSelectedHierarchicalLevel('');
                                             setError(null);
                                         }, variant: "secondary", size: "sm", children: "Cancel" }), _jsx(Button, { onClick: handleAdd, disabled: saving || !selectedPrincipalId.trim() ||
-                                            (config.mode === 'hierarchical' && !selectedHierarchicalLevel) ||
-                                            (config.mode === 'granular' && selectedPermissions.length === 0), size: "sm", children: saving ? 'Adding...' : addButtonLabel })] })] })), entries.length === 0 ? (_jsx("div", { style: { textAlign: 'center', padding: '2rem', color: 'var(--text-muted, #6b7280)' }, children: emptyMessage })) : (_jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: '0.5rem' }, children: entries.map(entry => (_jsxs("div", { style: {
+                                            (config.mode === 'hierarchical' && (config.hierarchicalPermissions?.length || 0) > 1 && !selectedHierarchicalLevel) ||
+                                            (config.mode === 'granular' && (config.granularPermissions?.length || 0) > 1 && selectedPermissions.length === 0), size: "sm", children: saving ? 'Adding...' : addButtonLabel })] })] })), entries.length === 0 ? (_jsx("div", { style: { textAlign: 'center', padding: '2rem', color: 'var(--text-muted, #6b7280)' }, children: emptyMessage })) : (_jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: '0.5rem' }, children: entries.map(entry => (_jsxs("div", { style: {
                                 border: '1px solid var(--border-default, #e5e7eb)',
                                 borderRadius: '0.5rem',
                                 padding: '1rem',

@@ -87,6 +87,16 @@ export interface AclPickerProps {
     validateEntry?: (entry: Omit<AclEntry, 'id'>) => string | null;
     fetchPrincipals?: (type: PrincipalType, search?: string) => Promise<Principal[]>;
     disabled?: boolean;
+    /**
+     * Whether to prompt for confirmation before removing an entry.
+     * Defaults to true.
+     */
+    confirmRemove?: boolean;
+    /**
+     * Optional custom confirmation message shown when removing an entry.
+     * If omitted, a default message is used.
+     */
+    confirmRemoveMessage?: string;
     error?: string | null;
 }
 //# sourceMappingURL=acl.d.ts.map

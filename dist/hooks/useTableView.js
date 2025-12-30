@@ -137,41 +137,10 @@ export function useTableView({ tableId, onViewChange }) {
                 // If user previously chose "All Items" we must respect it (sentinel),
                 // and if they previously chose a view id we restore it.
                 let restored = getViewToRestoreFromCache(tableId, fetchedViews);
-                // Only on true first visit: use the system default as a TEMPLATE, not as the persisted selection.
-                // We create a personal copy (owned by the user) and select that. This makes "default views"
-                // effectively one-time bootstrap only.
+                // Only on true first visit (no cached selection at all):
+                // auto-select the system default view (if any).
                 if (isFirstVisit && restored === null) {
-                    const systemDefault = getSystemDefaultView(fetchedViews);
-                    if (systemDefault) {
-                        try {
-                            const createRes = await fetch('/api/table-views', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    tableId,
-                                    name: systemDefault.name,
-                                    description: systemDefault.description || undefined,
-                                    filters: Array.isArray(systemDefault?.filters) ? systemDefault.filters : [],
-                                    columnVisibility: systemDefault.columnVisibility || undefined,
-                                    sorting: systemDefault.sorting || undefined,
-                                    groupBy: systemDefault.groupBy || undefined,
-                                    metadata: systemDefault.metadata || undefined,
-                                }),
-                            });
-                            if (createRes.ok) {
-                                const createdJson = await createRes.json().catch(() => ({}));
-                                const newView = createdJson?.data || null;
-                                if (newView?.id) {
-                                    restored = newView;
-                                    // Ensure list includes the newly created view immediately
-                                    setViews([...fetchedViews, newView]);
-                                }
-                            }
-                        }
-                        catch {
-                            // Ignore bootstrap failures; fall back to All Items
-                        }
-                    }
+                    restored = getSystemDefaultView(fetchedViews);
                 }
                 if (restored) {
                     console.log(`[useTableView ${instanceId.current}] Restoring cached view: ${restored.name}`);
