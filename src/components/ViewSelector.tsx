@@ -135,7 +135,9 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
   const customViews = views.filter((v) => v._category === 'user' || (!v.isSystem && v._category !== 'shared'));
   const sharedViews = views.filter((v) => v._category === 'shared');
 
-  const showSystemViews = Boolean(currentView?.isSystem) || !hasCachedSelection;
+  // System/default views are treated as first-visit templates only.
+  // Once a user has any cached selection, we hide system views entirely.
+  const showSystemViews = !hasCachedSelection;
 
   // Human label for "All <table>" (derived from tableId)
   const tableLabel = String(tableId)
