@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -167,6 +167,34 @@ export function DataTable<TData extends Record<string, unknown>>({
   
   // View-based groupBy (overrides prop when set by view)
   const [viewGroupBy, setViewGroupBy] = useState<{ field: string; sortOrder?: string[] } | null>(null);
+
+  // Persist per-table+per-view "modifiers" (column visibility + sorting) in localStorage.
+  // This is intentionally local-only so it can apply on top of public/system/shared views.
+  const currentViewIdRef = useRef<string | null>(null); // null = "All Items"
+  const hasInitializedSelectionRef = useRef(false);
+  const getModifiersKey = (tid: string, vid: string | null) => `hit:table-modifiers:${tid}:${vid ?? '__all__'}`;
+  const readModifiers = (tid: string, vid: string | null): { sorting?: SortingState; columnVisibility?: VisibilityState } | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(getModifiersKey(tid, vid));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch {
+      return null;
+    }
+  };
+  const writeModifiers = (tid: string, vid: string | null, mods: { sorting: SortingState; columnVisibility: VisibilityState }) => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(
+        getModifiersKey(tid, vid),
+        JSON.stringify({ sorting: mods.sorting, columnVisibility: mods.columnVisibility, updatedAt: new Date().toISOString() })
+      );
+    } catch {
+      // Ignore localStorage failures
+    }
+  };
   
   // Per-group pagination state: { groupKey: currentPage }
   const [groupPages, setGroupPages] = useState<Record<string, number>>({});
@@ -374,12 +402,19 @@ export function DataTable<TData extends Record<string, unknown>>({
     const visibleBucketKeys = Object.keys(bucketColumns || {}).filter((k) => (columnVisibility as any)?.[k] === true);
     if (!visibleBucketKeys.length) return;
 
+    const bucketGroupMetaLocal = groupBy && tableId ? bucketColumns[groupBy.field] : null;
+    const isServerBucketGroupLocal = Boolean(groupBy && tableId && bucketGroupMetaLocal && bucketGroupMetaLocal.entityKind);
+    const serverRows = isServerBucketGroupLocal
+      ? Object.values((bucketGroupBySeg as any) || {}).flatMap((g: any) => (Array.isArray(g?.rows) ? g.rows : []))
+      : [];
+    const sourceRows = isServerBucketGroupLocal ? serverRows : (data || []);
+
     const MAX = 500;
     const idsByCol: Record<string, string[]> = {};
     for (const k of visibleBucketKeys) {
       const meta = bucketColumns[k];
       const idField = meta?.entityIdField || 'id';
-      const ids = (data || [])
+      const ids = (sourceRows || [])
         .map((row: any) => String(row?.[idField] ?? '').trim())
         .filter(Boolean)
         .slice(0, MAX);
@@ -421,7 +456,7 @@ export function DataTable<TData extends Record<string, unknown>>({
     return () => {
       cancelled = true;
     };
-  }, [tableId, data, bucketColumns, columnVisibility]);
+  }, [tableId, data, bucketColumns, columnVisibility, groupBy?.field, bucketGroupBySeg]);
 
   // Evaluate metric values for visible metric columns on current page rows (best-effort, non-sorting).
   useEffect(() => {
@@ -429,12 +464,19 @@ export function DataTable<TData extends Record<string, unknown>>({
     const visibleMetricKeys = Object.keys(metricColumns || {}).filter((k) => (columnVisibility as any)?.[k] === true);
     if (!visibleMetricKeys.length) return;
 
+    const bucketGroupMetaLocal = groupBy && tableId ? bucketColumns[groupBy.field] : null;
+    const isServerBucketGroupLocal = Boolean(groupBy && tableId && bucketGroupMetaLocal && bucketGroupMetaLocal.entityKind);
+    const serverRows = isServerBucketGroupLocal
+      ? Object.values((bucketGroupBySeg as any) || {}).flatMap((g: any) => (Array.isArray(g?.rows) ? g.rows : []))
+      : [];
+    const sourceRows = isServerBucketGroupLocal ? serverRows : (data || []);
+
     const MAX = 500;
     const idsByCol: Record<string, string[]> = {};
     for (const k of visibleMetricKeys) {
       const meta = metricColumns[k];
       const idField = meta?.entityIdField || 'id';
-      const ids = (data || [])
+      const ids = (sourceRows || [])
         .map((row: any) => String(row?.[idField] ?? '').trim())
         .filter(Boolean)
         .slice(0, MAX);
@@ -476,7 +518,7 @@ export function DataTable<TData extends Record<string, unknown>>({
     return () => {
       cancelled = true;
     };
-  }, [tableId, data, metricColumns, columnVisibility]);
+  }, [tableId, data, metricColumns, columnVisibility, groupBy?.field, bucketColumns, bucketGroupBySeg]);
 
   const augmentedData = useMemo(() => {
     const bucketKeys = Object.keys(bucketColumns || {});
@@ -976,6 +1018,9 @@ export function DataTable<TData extends Record<string, unknown>>({
               ]}
               onReady={setViewSystemReady}
               onViewChange={(view: TableView | null) => {
+                currentViewIdRef.current = view?.id ?? null;
+                hasInitializedSelectionRef.current = true;
+
                 if (onViewChange) {
                   onViewChange(view as any);
                 }
@@ -990,14 +1035,25 @@ export function DataTable<TData extends Record<string, unknown>>({
                 if (onViewSortingChange) {
                   onViewSortingChange((view?.sorting as any) || []);
                 }
-                // Apply sorting from view (as default sort)
-                if (view?.sorting && Array.isArray(view.sorting)) {
-                  setSorting(view.sorting.map((s: any) => ({ id: String(s?.id || ''), desc: Boolean(s?.desc) })).filter((s: any) => s.id));
-                }
-                // Apply column visibility from view
-                if (view?.columnVisibility) {
-                  setColumnVisibility(view.columnVisibility);
-                }
+
+                // Apply view defaults, then overlay local modifiers (per-view).
+                const baseSorting: SortingState =
+                  view?.sorting && Array.isArray(view.sorting)
+                    ? view.sorting
+                        .map((s: any) => ({ id: String(s?.id || ''), desc: Boolean(s?.desc) }))
+                        .filter((s: any) => s.id)
+                    : initialSorting?.map((s) => ({ id: s.id, desc: s.desc ?? false })) || [];
+
+                const baseColumnVisibility: VisibilityState =
+                  (view?.columnVisibility as any) ?? (initialColumnVisibility || {});
+
+                const mods = readModifiers(tableId, view?.id ?? null);
+                if (mods?.sorting) setSorting(mods.sorting);
+                else setSorting(baseSorting);
+
+                if (mods?.columnVisibility) setColumnVisibility(mods.columnVisibility);
+                else setColumnVisibility(baseColumnVisibility);
+
                 // Apply groupBy from view
                 const newGroupBy = view?.groupBy || null;
                 setViewGroupBy(newGroupBy);
@@ -1299,7 +1355,34 @@ export function DataTable<TData extends Record<string, unknown>>({
                             const colId = String(col?.id || '');
                             const baseCol: any = (columns as any[]).find((c) => c?.key === colId) || null;
                             const value = rowData?.[colId];
-                            const content = baseCol?.render ? baseCol.render(value, rowData, idx) : (value == null ? '' : String(value));
+                            const content = (() => {
+                              // 1) Explicit column render (feature-pack provided)
+                              if (baseCol?.render) return baseCol.render(value, rowData, idx);
+
+                              // 2) Dynamic bucket columns (segment bucket label)
+                              const bucketMeta: any = (bucketColumns as any)?.[colId] || null;
+                              if (bucketMeta) {
+                                const idField = bucketMeta?.entityIdField || 'id';
+                                const id = String(rowData?.[idField] ?? rowData?.id ?? '').trim();
+                                const label = id ? (bucketValues as any)?.[colId]?.[id] : '';
+                                if (label) return String(label);
+                                // If the server already included a value, fall back to it
+                                return value == null ? '' : String(value);
+                              }
+
+                              // 3) Dynamic metric columns (computed metric value)
+                              const metricMeta: any = (metricColumns as any)?.[colId] || null;
+                              if (metricMeta) {
+                                const idField = metricMeta?.entityIdField || 'id';
+                                const id = String(rowData?.[idField] ?? rowData?.id ?? '').trim();
+                                const v = id ? (metricValues as any)?.[colId]?.[id] : undefined;
+                                if (v === undefined || v === null) return '';
+                                return formatMetricValue(v, metricMeta) as any;
+                              }
+
+                              // 4) Default: stringify
+                              return value == null ? '' : String(value);
+                            })();
                             return (
                               <td
                                 key={`${rowKey}-${colId}-${idx}`}
@@ -1497,3 +1580,4 @@ export function DataTable<TData extends Record<string, unknown>>({
     </>
   );
 }
+

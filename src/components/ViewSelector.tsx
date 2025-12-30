@@ -88,20 +88,6 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
     onViewChange,
   });
   const alertDialog = useAlertDialog();
-
-  // Whether to show system/default views in the dropdown.
-  // Idea: default/system views are only useful as a first-visit bootstrap.
-  // After the first visit (i.e. once the user has any cached selection), we hide them
-  // unless a system view is currently selected (so you can still see what you're on).
-  const [hasCachedSelection, setHasCachedSelection] = useState<boolean>(false);
-  useEffect(() => {
-    try {
-      const cached = localStorage.getItem(`hit:table-view:${tableId}`);
-      setHasCachedSelection(cached !== null);
-    } catch {
-      setHasCachedSelection(false);
-    }
-  }, [tableId]);
   
   // Notify parent when view system is ready
   useEffect(() => {
@@ -134,12 +120,6 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
   const systemViews = views.filter((v) => v._category === 'system' || v.isSystem);
   const customViews = views.filter((v) => v._category === 'user' || (!v.isSystem && v._category !== 'shared'));
   const sharedViews = views.filter((v) => v._category === 'shared');
-
-  // System/default views are treated as first-visit templates only.
-  // Once a user has any cached selection, we hide system views entirely,
-  // unless a system view is currently selected (so you can still see what you're on).
-  const isCurrentViewSystem = currentView && (currentView.isSystem || currentView._category === 'system');
-  const showSystemViews = !hasCachedSelection || isCurrentViewSystem;
 
   // Human label for "All <table>" (derived from tableId)
   const tableLabel = String(tableId)
@@ -606,7 +586,7 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
             )}
             
             {/* System/Default Views */}
-            {showSystemViews && systemViews.length > 0 && (
+            {systemViews.length > 0 && (
               <>
                 <div style={dropdownStyles.sectionHeader}>Default Views</div>
                 {systemViews.map((view) => (
