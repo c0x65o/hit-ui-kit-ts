@@ -196,6 +196,7 @@ export {
   Card,
   Button,
   Input,
+  ColorPicker,
   TextArea,
   Select,
   Checkbox,

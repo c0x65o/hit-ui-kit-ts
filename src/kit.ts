@@ -11,6 +11,7 @@ import { Page } from './components/Page';
 import { Card } from './components/Card';
 import { Button } from './components/Button';
 import { Input } from './components/Input';
+import { ColorPicker } from './components/ColorPicker';
 import { TextArea } from './components/TextArea';
 import { Select } from './components/Select';
 import { Checkbox } from './components/Checkbox';
@@ -52,6 +53,7 @@ export const defaultKit: UiKit = {
   Card,
   Button,
   Input,
+  ColorPicker,
   TextArea,
   Select,
   Checkbox,
