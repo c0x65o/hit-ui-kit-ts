@@ -9,6 +9,7 @@ export { AuthLayout, type AuthLayoutProps } from './AuthLayout';
 export { AuthCard, type AuthCardProps } from './AuthCard';
 export { Button } from './Button';
 export { Input } from './Input';
+export { ColorPicker } from './ColorPicker';
 export { TextArea } from './TextArea';
 export { Select } from './Select';
 export { Checkbox } from './Checkbox';

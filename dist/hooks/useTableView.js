@@ -69,6 +69,13 @@ function getViewToRestoreFromCache(tableId, fetchedViews) {
 function persistCurrentSelection(tableId, view) {
     setCachedViewId(tableId, view?.id ?? null);
 }
+function getSystemDefaultView(fetchedViews) {
+    // A "default view" is a system-provided view marked isDefault.
+    // We only want to auto-apply it on the user's true first visit (no cached selection).
+    return (fetchedViews.find((v) => Boolean(v?.isSystem) && Boolean(v?.isDefault)) ||
+        fetchedViews.find((v) => Boolean(v?.isSystem)) ||
+        null);
+}
 /**
  * Hook for managing table views
  *
@@ -124,7 +131,48 @@ export function useTableView({ tableId, onViewChange }) {
             // On initial load, restore cached selection or default to "All Items"
             // (We persist "All Items" explicitly so it can be re-selected even once views exist.)
             if (resetToDefault) {
-                const restored = getViewToRestoreFromCache(tableId, fetchedViews);
+                const cachedRaw = getCachedViewId(tableId);
+                // True first visit: nothing cached yet (not even an explicit "All Items" sentinel)
+                const isFirstVisit = cachedRaw === null;
+                // If user previously chose "All Items" we must respect it (sentinel),
+                // and if they previously chose a view id we restore it.
+                let restored = getViewToRestoreFromCache(tableId, fetchedViews);
+                // Only on true first visit: use the system default as a TEMPLATE, not as the persisted selection.
+                // We create a personal copy (owned by the user) and select that. This makes "default views"
+                // effectively one-time bootstrap only.
+                if (isFirstVisit && restored === null) {
+                    const systemDefault = getSystemDefaultView(fetchedViews);
+                    if (systemDefault) {
+                        try {
+                            const createRes = await fetch('/api/table-views', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    tableId,
+                                    name: systemDefault.name,
+                                    description: systemDefault.description || undefined,
+                                    filters: Array.isArray(systemDefault?.filters) ? systemDefault.filters : [],
+                                    columnVisibility: systemDefault.columnVisibility || undefined,
+                                    sorting: systemDefault.sorting || undefined,
+                                    groupBy: systemDefault.groupBy || undefined,
+                                    metadata: systemDefault.metadata || undefined,
+                                }),
+                            });
+                            if (createRes.ok) {
+                                const createdJson = await createRes.json().catch(() => ({}));
+                                const newView = createdJson?.data || null;
+                                if (newView?.id) {
+                                    restored = newView;
+                                    // Ensure list includes the newly created view immediately
+                                    setViews([...fetchedViews, newView]);
+                                }
+                            }
+                        }
+                        catch {
+                            // Ignore bootstrap failures; fall back to All Items
+                        }
+                    }
+                }
                 if (restored) {
                     console.log(`[useTableView ${instanceId.current}] Restoring cached view: ${restored.name}`);
                 }
@@ -216,7 +264,9 @@ export function useTableView({ tableId, onViewChange }) {
             const remaining = prev.filter((v) => v.id !== viewId);
             setCurrentView((current) => {
                 if (current?.id === viewId) {
-                    const newCurrentView = remaining.find((v) => v.isDefault) || remaining[0] || null;
+                    // Don't auto-fall back to any "default" view. If the selected view was deleted,
+                    // return to "All Items" and let the user explicitly pick another view.
+                    const newCurrentView = null;
                     onViewChangeRef.current?.(newCurrentView);
                     persistCurrentSelection(tableId, newCurrentView);
                     return newCurrentView;

@@ -11,6 +11,7 @@ export { AuthCard } from './AuthCard';
 // Forms
 export { Button } from './Button';
 export { Input } from './Input';
+export { ColorPicker } from './ColorPicker';
 export { TextArea } from './TextArea';
 export { Select } from './Select';
 export { Checkbox } from './Checkbox';

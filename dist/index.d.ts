@@ -56,7 +56,7 @@ export declare function UiKitProvider({ kit, children, }: {
  * Missing components will throw errors when used.
  */
 export declare function createKit(partial: Partial<UiKit>): UiKit;
-export type { UiKit, PageProps, CardProps, ButtonProps, InputProps, TextAreaProps, SelectProps, SelectOption, CheckboxProps, AutocompleteProps, AutocompleteOption, TableProps, TableColumn, BadgeProps, AvatarProps, AlertProps, ModalProps, SpinnerProps, EmptyStateProps, TabsProps, DropdownProps, BreadcrumbProps, BreadcrumbItem, HelpProps, } from './types';
+export type { UiKit, PageProps, CardProps, ButtonProps, InputProps, ColorPickerProps, TextAreaProps, SelectProps, SelectOption, CheckboxProps, AutocompleteProps, AutocompleteOption, TableProps, TableColumn, BadgeProps, AvatarProps, AlertProps, ModalProps, SpinnerProps, EmptyStateProps, TabsProps, DropdownProps, BreadcrumbProps, BreadcrumbItem, HelpProps, } from './types';
 export type { PrincipalType, Principal, HierarchicalPermission, GranularPermission, AclEntry, AclPickerConfig, AclPickerProps, } from './types/acl';
 export { ThemeProvider, ConditionalThemeProvider, useTheme, useThemeContext, useThemeTokens, getConfiguredTheme, darkTheme, lightTheme, type Theme, } from './theme';
 export * from './tokens';
@@ -64,6 +64,6 @@ export { defaultKit } from './kit';
 export { useAlertDialog } from './hooks/useAlertDialog';
 export type { AlertDialogOptions, AlertDialogState } from './hooks/useAlertDialog';
 export { useTableView, type TableView, type TableViewFilter, type TableViewShare } from './hooks/useTableView';
-export { Page, Card, Button, Input, TextArea, Select, Checkbox, Autocomplete, Table, DataTable, Badge, Avatar, Alert, Modal, AlertDialog, Spinner, EmptyState, Tabs, Dropdown, Breadcrumb, Help, AuthLayout, AuthCard, FormInput, AclPicker, ViewSelector, FILTER_OPERATORS, type ViewColumnDefinition, TableViewSharingPanel, type TableViewShareRecipient, cn, styles, } from './components';
+export { Page, Card, Button, Input, ColorPicker, TextArea, Select, Checkbox, Autocomplete, Table, DataTable, Badge, Avatar, Alert, Modal, AlertDialog, Spinner, EmptyState, Tabs, Dropdown, Breadcrumb, Help, AuthLayout, AuthCard, FormInput, AclPicker, ViewSelector, FILTER_OPERATORS, type ViewColumnDefinition, TableViewSharingPanel, type TableViewShareRecipient, cn, styles, } from './components';
 export type { AuthLayoutProps, AuthCardProps, FormInputProps } from './components';
 //# sourceMappingURL=index.d.ts.map

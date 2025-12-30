@@ -38,6 +38,15 @@ export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElem
     disabled?: boolean;
     required?: boolean;
 }
+export interface ColorPickerProps {
+    label?: string;
+    value: string;
+    onChange: (value: string) => void;
+    placeholder?: string;
+    error?: string;
+    disabled?: boolean;
+    required?: boolean;
+}
 export interface TextAreaProps {
     label?: string;
     placeholder?: string;
@@ -76,6 +85,7 @@ export interface TableColumn {
     render?: (value: unknown, row: Record<string, unknown>, index: number) => React.ReactNode;
     width?: string;
     align?: 'left' | 'center' | 'right';
+    sortable?: boolean;
 }
 export interface TableProps {
     columns: TableColumn[];
@@ -84,147 +94,84 @@ export interface TableProps {
     emptyMessage?: string;
     loading?: boolean;
 }
-/** Option for select/multiselect fields in view builder */
-export interface FilterOption {
-    value: string;
-    label: string;
-    /** Sort order for grouping - lower numbers appear first */
-    sortOrder?: number;
-}
-export interface DataTableColumn<TData = Record<string, unknown>> extends Omit<TableColumn, 'render'> {
-    sortable?: boolean;
-    hideable?: boolean;
-    render?: (value: any, row?: TData, index?: number) => React.ReactNode;
-    /** Field type for view builder (affects filter operators and value input) */
-    filterType?: 'string' | 'number' | 'date' | 'boolean' | 'select' | 'multiselect';
-    /** Options for select/multiselect fields in view builder */
-    filterOptions?: FilterOption[];
-}
-export interface GroupConfig<TData = Record<string, unknown>> {
-    /** Field key to group by */
-    field: string;
-    /** Custom sort order for groups. Can be an array of group values in desired order, or a function that returns sort order */
-    sortOrder?: string[] | ((groupValue: unknown, groupData: TData[]) => number);
-    /** Custom label renderer for group headers */
-    renderLabel?: (groupValue: unknown, groupData: TData[]) => React.ReactNode;
-    /** Whether groups are collapsed by default */
-    defaultCollapsed?: boolean;
-}
-export interface DataTableProps<TData extends Record<string, unknown> = Record<string, unknown>> {
-    columns: DataTableColumn<TData>[];
-    data: TData[];
-    searchable?: boolean;
-    exportable?: boolean;
-    showColumnVisibility?: boolean;
-    onRowClick?: (row: TData, index: number) => void;
+export interface DataTableProps<T = Record<string, unknown>> {
+    data: T[];
+    columns: Array<{
+        key: string;
+        label: string;
+        render?: (value: unknown, row: T, index: number) => React.ReactNode;
+        width?: string;
+        align?: 'left' | 'center' | 'right';
+        sortable?: boolean;
+    }>;
+    onRowClick?: (row: T, index: number) => void;
     emptyMessage?: string;
     loading?: boolean;
-    pageSize?: number;
-    /** Optional page-size selector options (only shown when onPageSizeChange is provided) */
-    pageSizeOptions?: number[];
-    /** Called when the user selects a different page size */
-    onPageSizeChange?: (pageSize: number) => void;
-    initialSorting?: Array<{
-        id: string;
-        desc?: boolean;
-    }>;
-    initialColumnVisibility?: Record<string, boolean>;
-    total?: number;
-    page?: number;
-    onPageChange?: (page: number) => void;
-    manualPagination?: boolean;
-    onRefresh?: () => void;
-    refreshing?: boolean;
-    showRefresh?: boolean;
-    groupBy?: GroupConfig<TData>;
-    /** Number of items to show per group initially (enables per-group pagination) */
-    groupPageSize?: number;
-    tableId?: string;
-    enableViews?: boolean;
-    onViewFiltersChange?: (filters: Array<{
-        field: string;
-        operator: string;
-        value: any;
-    }>) => void;
-    /** How to combine view filters in queries: 'all' (AND) or 'any' (OR). Defaults to 'all'. */
-    onViewFilterModeChange?: (mode: 'all' | 'any') => void;
-    onViewGroupByChange?: (groupBy: {
-        field: string;
-        sortOrder?: string[];
-    } | null) => void;
-    /** Default sort stored on the view (multi-sort supported). */
-    onViewSortingChange?: (sorting: Array<{
-        id: string;
-        desc: boolean;
-    }>) => void;
-    /** Receive the full selected view object (includes metadata) when the user changes views */
-    onViewChange?: (view: any | null) => void;
 }
-export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-    variant?: 'default' | 'success' | 'warning' | 'error' | 'info';
+export interface BadgeProps {
+    variant?: 'default' | 'primary' | 'success' | 'warning' | 'error' | 'secondary';
     children: React.ReactNode;
+    style?: React.CSSProperties;
+    className?: string;
 }
 export interface AvatarProps {
     src?: string;
+    alt?: string;
     name?: string;
     size?: 'sm' | 'md' | 'lg';
+    className?: string;
 }
-export interface AlertProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'> {
-    variant: 'success' | 'warning' | 'error' | 'info';
+export interface AlertProps {
+    variant?: 'default' | 'success' | 'warning' | 'error' | 'info';
     title?: string;
-    onClose?: () => void;
     children: React.ReactNode;
+    onClose?: () => void;
 }
 export interface ModalProps {
     open: boolean;
     onClose: () => void;
     title?: string;
-    description?: string;
-    size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
     children: React.ReactNode;
+    size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+    footer?: React.ReactNode;
 }
 export interface AlertDialogProps {
     open: boolean;
     onClose: () => void;
-    variant?: 'success' | 'warning' | 'error' | 'info';
-    title?: string;
-    message: React.ReactNode;
-    confirmText?: string;
-    cancelText?: string;
-    onConfirm?: () => void;
-    onCancel?: () => void;
-    size?: 'sm' | 'md' | 'lg' | 'xl';
+    onConfirm: () => void;
+    title: string;
+    description: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    variant?: 'default' | 'danger';
 }
 export interface SpinnerProps {
     size?: 'sm' | 'md' | 'lg';
+    className?: string;
 }
 export interface EmptyStateProps {
-    icon?: React.ReactNode;
-    title: string;
+    title?: string;
     description?: string;
+    icon?: React.ReactNode;
     action?: React.ReactNode;
 }
 export interface TabsProps {
-    tabs: {
-        id?: string;
-        value?: string;
+    tabs: Array<{
+        id: string;
         label: string;
-        content?: React.ReactNode;
-    }[];
-    activeTab?: string;
-    onChange?: (tabId: string) => void;
-    value?: string;
-    onValueChange?: (tabId: string) => void;
+        content: React.ReactNode;
+    }>;
+    defaultTab?: string;
+    onTabChange?: (tabId: string) => void;
 }
 export interface DropdownProps {
     trigger: React.ReactNode;
-    items: {
+    items: Array<{
         label: string;
         onClick: () => void;
-        icon?: React.ReactNode;
-        danger?: boolean;
         disabled?: boolean;
-    }[];
+        icon?: React.ReactNode;
+    }>;
     align?: 'left' | 'right';
 }
 export interface BreadcrumbItem {
@@ -235,35 +182,10 @@ export interface BreadcrumbItem {
 export interface BreadcrumbProps {
     items: BreadcrumbItem[];
     onNavigate?: (path: string) => void;
-    showHome?: boolean;
-    homeHref?: string;
-}
-export interface AutocompleteOption {
-    value: string;
-    label: string;
-    description?: string;
-    disabled?: boolean;
-}
-export interface AutocompleteProps {
-    label?: string;
-    placeholder?: string;
-    value: string;
-    onChange: (value: string) => void;
-    disabled?: boolean;
-    minQueryLength?: number;
-    debounceMs?: number;
-    limit?: number;
-    onSearch: (query: string, limit: number) => Promise<AutocompleteOption[]>;
-    resolveValue?: (value: string) => Promise<AutocompleteOption | null>;
-    emptyMessage?: string;
-    searchingMessage?: string;
-    clearable?: boolean;
 }
 export interface HelpProps {
     content: React.ReactNode;
     title?: string;
-    position?: 'top' | 'bottom' | 'left' | 'right';
-    trigger?: 'hover' | 'click';
     icon?: React.ReactNode;
     size?: 'sm' | 'md' | 'lg';
 }
@@ -272,6 +194,7 @@ export interface UiKit {
     Card: React.ComponentType<CardProps>;
     Button: React.ComponentType<ButtonProps>;
     Input: React.ComponentType<InputProps>;
+    ColorPicker: React.ComponentType<ColorPickerProps>;
     TextArea: React.ComponentType<TextAreaProps>;
     Select: React.ComponentType<SelectProps>;
     Checkbox: React.ComponentType<CheckboxProps>;

@@ -70,6 +70,7 @@ export function createKit(partial: Partial<UiKit>): UiKit {
     Card: partial.Card ?? notImplemented('Card'),
     Button: partial.Button ?? notImplemented('Button'),
     Input: partial.Input ?? notImplemented('Input'),
+    ColorPicker: partial.ColorPicker ?? notImplemented('ColorPicker'),
     TextArea: partial.TextArea ?? notImplemented('TextArea'),
     Select: partial.Select ?? notImplemented('Select'),
     Checkbox: partial.Checkbox ?? notImplemented('Checkbox'),
