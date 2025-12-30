@@ -151,7 +151,7 @@ export function DataTable<TData extends Record<string, unknown>>({
     defaultCollapsed: groupByProp?.defaultCollapsed,
   } : groupByProp;
 
-  // Discover bucket columns for this tableId (admin-only on backend today; failures are silent).
+  // Discover bucket columns for this tableId (best-effort; failures are silent).
   useEffect(() => {
     if (!viewsEnabled || !tableId) return;
     let cancelled = false;
