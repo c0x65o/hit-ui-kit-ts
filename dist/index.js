@@ -113,6 +113,7 @@ export { defaultKit } from './kit';
 // Hooks
 export { useAlertDialog } from './hooks/useAlertDialog';
 export { useTableView } from './hooks/useTableView';
+export { useFormSubmit, parseError, parseResponseError } from './hooks/useFormSubmit';
 // Components (for direct imports)
 export { Page, Card, Button, Input, ColorPicker, TextArea, Select, Checkbox, Autocomplete, Table, DataTable, Badge, Avatar, Alert, Modal, AlertDialog, Spinner, EmptyState, Tabs, Dropdown, Breadcrumb, Help, 
 // Auth-specific
