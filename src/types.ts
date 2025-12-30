@@ -99,6 +99,36 @@ export interface CheckboxProps {
 }
 
 // =============================================================================
+// AUTOCOMPLETE
+// =============================================================================
+
+export interface AutocompleteOption {
+  value: string;
+  label: string;
+  description?: string;
+  disabled?: boolean;
+}
+
+export interface AutocompleteProps {
+  label?: string;
+  placeholder?: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+
+  minQueryLength?: number; // default 2
+  debounceMs?: number; // default 300
+  limit?: number; // default 10
+
+  onSearch: (query: string, limit: number) => Promise<AutocompleteOption[]>;
+  resolveValue?: (value: string) => Promise<AutocompleteOption | null>;
+
+  emptyMessage?: string;
+  searchingMessage?: string;
+  clearable?: boolean;
+}
+
+// =============================================================================
 // DATA DISPLAY
 // =============================================================================
 
@@ -128,14 +158,53 @@ export interface DataTableProps<T = Record<string, unknown>> {
     width?: string;
     align?: 'left' | 'center' | 'right';
     sortable?: boolean;
+    hideable?: boolean;
+    filterType?: 'string' | 'number' | 'boolean' | 'date' | 'select' | 'multiselect';
+    // Flexible shape, commonly: [{ value, label }]
+    filterOptions?: any[];
   }>;
   onRowClick?: (row: T, index: number) => void;
   emptyMessage?: string;
   loading?: boolean;
+  // Search and export
+  searchable?: boolean;
+  exportable?: boolean;
+  showColumnVisibility?: boolean;
+  // Pagination
+  pageSize?: number;
+  pageSizeOptions?: number[];
+  onPageSizeChange?: (pageSize: number) => void;
+  initialSorting?: Array<{ id: string; desc?: boolean }>;
+  initialColumnVisibility?: Record<string, boolean>;
+  // Server-side pagination
+  total?: number;
+  page?: number;
+  onPageChange?: (page: number) => void;
+  manualPagination?: boolean;
+  // Refresh
+  onRefresh?: () => void | Promise<void>;
+  refreshing?: boolean;
+  showRefresh?: boolean;
+  // Grouping
+  groupBy?: {
+    field: string;
+    sortOrder?: string[] | ((groupValue: any, groupData: any[]) => number);
+    renderLabel?: (groupValue: any, groupData: any[]) => React.ReactNode;
+    defaultCollapsed?: boolean;
+  } | null;
+  groupPageSize?: number;
+  // View system
+  tableId?: string;
+  enableViews?: boolean;
+  onViewFiltersChange?: (filters: any[]) => void;
+  onViewFilterModeChange?: (mode: string) => void;
+  onViewGroupByChange?: (groupBy: any) => void;
+  onViewSortingChange?: (sorting: Array<{ id: string; desc?: boolean }>) => void;
+  onViewChange?: (view: any) => void;
 }
 
 export interface BadgeProps {
-  variant?: 'default' | 'primary' | 'success' | 'warning' | 'error' | 'secondary';
+  variant?: 'default' | 'primary' | 'success' | 'warning' | 'error' | 'info' | 'secondary';
   children: React.ReactNode;
   style?: React.CSSProperties;
   className?: string;
@@ -164,20 +233,23 @@ export interface ModalProps {
   open: boolean;
   onClose: () => void;
   title?: string;
+  description?: string;
   children: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
   footer?: React.ReactNode;
 }
 
 export interface AlertDialogProps {
   open: boolean;
   onClose: () => void;
-  onConfirm: () => void;
-  title: string;
-  description: string;
-  confirmLabel?: string;
-  cancelLabel?: string;
-  variant?: 'default' | 'danger';
+  variant?: 'success' | 'warning' | 'error' | 'info';
+  title?: string;
+  message: React.ReactNode;
+  confirmText?: string;
+  cancelText?: string;
+  onConfirm?: () => void;
+  onCancel?: () => void;
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
 }
 
 export interface SpinnerProps {
@@ -197,7 +269,20 @@ export interface EmptyStateProps {
 // =============================================================================
 
 export interface TabsProps {
-  tabs: Array<{ id: string; label: string; content: React.ReactNode }>;
+  tabs: Array<{
+    id?: string;
+    value?: string;
+    label: string;
+    content?: React.ReactNode;
+  }>;
+
+  // Controlled APIs supported by the Tabs component
+  activeTab?: string;
+  onChange?: (tabId: string) => void;
+  value?: string;
+  onValueChange?: (tabId: string) => void;
+
+  // Legacy API still used by some packs
   defaultTab?: string;
   onTabChange?: (tabId: string) => void;
 }
@@ -209,6 +294,7 @@ export interface DropdownProps {
     onClick: () => void;
     disabled?: boolean;
     icon?: React.ReactNode;
+    danger?: boolean;
   }>;
   align?: 'left' | 'right';
 }
@@ -222,6 +308,8 @@ export interface BreadcrumbItem {
 export interface BreadcrumbProps {
   items: BreadcrumbItem[];
   onNavigate?: (path: string) => void;
+  showHome?: boolean;
+  homeHref?: string;
 }
 
 // =============================================================================
@@ -231,6 +319,8 @@ export interface BreadcrumbProps {
 export interface HelpProps {
   content: React.ReactNode;
   title?: string;
+  position?: 'top' | 'bottom' | 'left' | 'right';
+  trigger?: 'hover' | 'click';
   icon?: React.ReactNode;
   size?: 'sm' | 'md' | 'lg';
 }

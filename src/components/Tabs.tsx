@@ -18,12 +18,15 @@ interface ExtendedTabsProps {
   tabs: TabItem[];
   activeTab?: string;
   onChange?: (tabId: string) => void;
+  // Legacy API still used in some packs
+  defaultTab?: string;
+  onTabChange?: (tabId: string) => void;
   // Alternative controlled API
   value?: string;
   onValueChange?: (tabId: string) => void;
 }
 
-export function Tabs({ tabs, activeTab, onChange, value, onValueChange }: ExtendedTabsProps) {
+export function Tabs({ tabs, activeTab, onChange, defaultTab, onTabChange, value, onValueChange }: ExtendedTabsProps) {
   const { colors, textStyles: ts, spacing } = useThemeTokens();
   
   // Support both id and value properties on tab items
@@ -31,9 +34,9 @@ export function Tabs({ tabs, activeTab, onChange, value, onValueChange }: Extend
   
   // Support both prop naming conventions
   const controlledValue = value ?? activeTab;
-  const onChangeHandler = onValueChange ?? onChange;
+  const onChangeHandler = onValueChange ?? onChange ?? onTabChange;
   
-  const [localActive, setLocalActive] = useState(controlledValue || getTabId(tabs[0]));
+  const [localActive, setLocalActive] = useState(controlledValue || defaultTab || getTabId(tabs[0]));
   const currentTab = controlledValue ?? localActive;
 
   const handleChange = (tabId: string) => {

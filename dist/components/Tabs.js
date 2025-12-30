@@ -3,14 +3,14 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState } from 'react';
 import { useThemeTokens } from '../theme/index.js';
 import { styles } from './utils';
-export function Tabs({ tabs, activeTab, onChange, value, onValueChange }) {
+export function Tabs({ tabs, activeTab, onChange, defaultTab, onTabChange, value, onValueChange }) {
     const { colors, textStyles: ts, spacing } = useThemeTokens();
     // Support both id and value properties on tab items
     const getTabId = (tab) => tab.id ?? tab.value ?? '';
     // Support both prop naming conventions
     const controlledValue = value ?? activeTab;
-    const onChangeHandler = onValueChange ?? onChange;
-    const [localActive, setLocalActive] = useState(controlledValue || getTabId(tabs[0]));
+    const onChangeHandler = onValueChange ?? onChange ?? onTabChange;
+    const [localActive, setLocalActive] = useState(controlledValue || defaultTab || getTabId(tabs[0]));
     const currentTab = controlledValue ?? localActive;
     const handleChange = (tabId) => {
         setLocalActive(tabId);
