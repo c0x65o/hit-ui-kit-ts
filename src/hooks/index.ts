@@ -18,3 +18,14 @@ export type {
   FormSubmitActions,
   UseFormSubmitOptions,
 } from './useFormSubmit';
+
+export {
+  ErrorLogProvider,
+  useErrorLog,
+  useCurrentUserEmail,
+  getCurrentPageUrl,
+} from './useErrorLog';
+export type { ErrorLogEntry, ErrorLogState, ErrorLogActions } from './useErrorLog';
+
+export { useTrackedFetch, installGlobalFetchInterceptor } from './useTrackedFetch';
+export type { TrackedFetchOptions } from './useTrackedFetch';

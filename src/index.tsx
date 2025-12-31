@@ -199,6 +199,18 @@ export type {
   UseFormSubmitOptions,
 } from './hooks/useFormSubmit';
 
+// Error Logging
+export {
+  ErrorLogProvider,
+  useErrorLog,
+  useCurrentUserEmail,
+  getCurrentPageUrl,
+} from './hooks/useErrorLog';
+export type { ErrorLogEntry, ErrorLogState, ErrorLogActions } from './hooks/useErrorLog';
+
+export { useTrackedFetch, installGlobalFetchInterceptor } from './hooks/useTrackedFetch';
+export type { TrackedFetchOptions } from './hooks/useTrackedFetch';
+
 // Components (for direct imports)
 export {
   Page,

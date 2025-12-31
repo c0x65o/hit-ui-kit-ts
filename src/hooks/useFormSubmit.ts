@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
+import { useErrorLog, useCurrentUserEmail, getCurrentPageUrl } from './useErrorLog';
 
 /**
  * Error parsing result from API responses.
@@ -213,6 +214,10 @@ export function useFormSubmit<T = unknown>(
   const [error, setErrorState] = useState<ParsedFormError | null>(null);
   const [fieldErrors, setFieldErrorsState] = useState<Record<string, string>>({});
 
+  // Global error logging
+  const { logError } = useErrorLog();
+  const userEmail = useCurrentUserEmail();
+
   const clearError = useCallback(() => {
     setErrorState(null);
   }, []);
@@ -241,24 +246,53 @@ export function useFormSubmit<T = unknown>(
     });
   }, []);
 
+  // Track timing for requests
+  const startTimeRef = useRef<number>(0);
+
   const submit = useCallback(
     async (fn: () => Promise<T>): Promise<T | undefined> => {
       setSubmitting(true);
       setErrorState(null);
+      startTimeRef.current = Date.now();
 
       try {
         const result = await fn();
         options.onSuccess?.();
         return result;
       } catch (err) {
+        const responseTimeMs = Date.now() - startTimeRef.current;
         let parsed: ParsedFormError;
+        let endpoint: string | undefined;
+        let method: string | undefined;
 
         // Handle fetch Response objects
         if (err instanceof Response) {
           parsed = await parseResponseError(err);
+          endpoint = err.url;
+          // Try to get method from response (not directly available, but we can infer)
         } else {
           parsed = parseError(err);
+          // Try to extract endpoint from error object
+          if (typeof err === 'object' && err !== null) {
+            const errObj = err as Record<string, unknown>;
+            endpoint = typeof errObj.url === 'string' ? errObj.url : undefined;
+            method = typeof errObj.method === 'string' ? errObj.method : undefined;
+          }
         }
+
+        // Log error to global store
+        logError({
+          userEmail,
+          pageUrl: getCurrentPageUrl(),
+          status: parsed.status || 0,
+          message: parsed.message,
+          endpoint,
+          method,
+          responseTimeMs,
+          fieldErrors: parsed.fieldErrors,
+          rawError: err instanceof Error ? { name: err.name, message: err.message } : err,
+          source: 'form',
+        });
 
         // Merge any field errors from the API
         if (parsed.fieldErrors) {
@@ -272,7 +306,7 @@ export function useFormSubmit<T = unknown>(
         setSubmitting(false);
       }
     },
-    [options]
+    [options, logError, userEmail]
   );
 
   return {
