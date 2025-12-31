@@ -49,6 +49,8 @@ export interface ErrorLogState {
   enabled: boolean;
   /** Maximum number of errors to keep */
   maxEntries: number;
+  /** Whether the provider context is available (false = fallback/no-op mode) */
+  isProviderAvailable: boolean;
 }
 
 /**
@@ -68,10 +70,26 @@ export interface ErrorLogActions {
 }
 
 // =============================================================================
-// CONTEXT
+// CONTEXT (using global to handle monorepo module duplication)
 // =============================================================================
 
-const ErrorLogContext = createContext<(ErrorLogState & ErrorLogActions) | null>(null);
+// Use a symbol key on window to ensure we have a single shared context instance
+// This handles the case where multiple copies of this module exist in monorepos
+const CONTEXT_KEY = '__HIT_ERROR_LOG_CONTEXT__';
+
+function getOrCreateContext(): React.Context<(ErrorLogState & ErrorLogActions) | null> {
+  if (typeof window !== 'undefined') {
+    const win = window as unknown as Record<string, unknown>;
+    if (!win[CONTEXT_KEY]) {
+      win[CONTEXT_KEY] = createContext<(ErrorLogState & ErrorLogActions) | null>(null);
+    }
+    return win[CONTEXT_KEY] as React.Context<(ErrorLogState & ErrorLogActions) | null>;
+  }
+  // SSR fallback - create a new context (won't be shared but that's OK for SSR)
+  return createContext<(ErrorLogState & ErrorLogActions) | null>(null);
+}
+
+const ErrorLogContext = getOrCreateContext();
 
 // =============================================================================
 // STORAGE KEYS
@@ -191,6 +209,7 @@ export function ErrorLogProvider({ children }: { children: ReactNode }) {
       errors,
       enabled,
       maxEntries: MAX_ENTRIES,
+      isProviderAvailable: true,
       logError,
       clearErrors,
       clearError,
@@ -237,8 +256,9 @@ export function useErrorLog(): ErrorLogState & ErrorLogActions {
     // This allows the hook to work without strict provider requirements
     return {
       errors: [],
-      enabled: false,
+      enabled: true, // Show as enabled even in fallback (less confusing UX)
       maxEntries: 0,
+      isProviderAvailable: false, // Flag to detect fallback mode
       logError: () => {},
       clearErrors: () => {},
       clearError: () => {},
