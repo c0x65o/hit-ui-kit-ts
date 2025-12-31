@@ -4,10 +4,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useUi } from '../index';
 import type { AclPickerProps, AclEntry, Principal, PrincipalType } from '../types/acl';
 
-// Import usePrincipals hook from auth-core
 // Note: Feature packs can provide their own fetchPrincipals prop to avoid this dependency
-// @ts-ignore - Optional peer dependency
-import { usePrincipals } from '@hit/feature-pack-auth-core';
+// Removed hard dependency on @hit/feature-pack-auth-core to avoid circular imports and module bloat
+// import { usePrincipals } from '@hit/feature-pack-auth-core';
 
 /**
  * AclPicker - Main ACL picker component
@@ -48,13 +47,12 @@ export function AclPicker({
     return { users: !!users, groups: !!groups, roles: !!roles };
   }, [config.principals]);
 
-  // Use custom fetcher if provided, otherwise use hook
-  // Note: If fetchPrincipals is not provided, @hit/feature-pack-auth-core must be installed
-  const { principals: hookPrincipals, loading: principalsLoading, error: principalsError } = usePrincipals({
-    users: enabledPrincipals.users && !fetchPrincipals,
-    groups: enabledPrincipals.groups && !fetchPrincipals,
-    roles: enabledPrincipals.roles && !fetchPrincipals,
-  });
+  // Use custom fetcher if provided, otherwise use hook (which is now injected via prop or provided by caller)
+  // Note: We removed the hard dependency on @hit/feature-pack-auth-core to avoid circular imports.
+  // Callers should provide fetchPrincipals or we will show an error if it's missing.
+  const hookPrincipals: Principal[] = [];
+  const principalsLoading = false;
+  const principalsError = null;
 
   const [customPrincipals, setCustomPrincipals] = useState<Principal[]>([]);
   const [customPrincipalsLoading, setCustomPrincipalsLoading] = useState(false);
