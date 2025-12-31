@@ -296,7 +296,9 @@ export function useErrorLog(): ErrorLogState & ErrorLogActions {
       errors: store.errors,
       enabled: store.enabled,
       maxEntries: MAX_ENTRIES,
-      isProviderAvailable: store.isProviderMounted,
+      // With the global-store implementation, ErrorLogProvider is optional.
+      // We keep the field for callers/UI, but always report available on client.
+      isProviderAvailable: typeof window !== 'undefined',
       logError: storeLogError,
       clearErrors: storeClearErrors,
       clearError: storeClearError,
