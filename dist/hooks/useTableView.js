@@ -105,6 +105,13 @@ export function useTableView({ tableId, onViewChange }) {
     useEffect(() => {
         onViewChangeRef.current = onViewChange;
     }, [onViewChange]);
+    // Notify consumer only after the view system is "ready" (prevents setState-in-render warnings).
+    // This guarantees callbacks run post-commit rather than during nested state updates.
+    useEffect(() => {
+        if (!viewReady)
+            return;
+        onViewChangeRef.current?.(currentView);
+    }, [currentView, viewReady]);
     const fetchViews = useCallback(async (resetToDefault = false) => {
         console.log(`[useTableView ${instanceId.current}] fetchViews called - resetToDefault=${resetToDefault}, hasInitialized=${hasInitialized.current}`);
         try {
@@ -149,7 +156,6 @@ export function useTableView({ tableId, onViewChange }) {
                     console.log(`[useTableView ${instanceId.current}] Restoring to All Items`);
                 }
                 setCurrentView(restored);
-                onViewChangeRef.current?.(restored);
                 // Persist what we restored so remounts don't re-apply a default view
                 persistCurrentSelection(tableId, restored);
             }
@@ -212,13 +218,7 @@ export function useTableView({ tableId, onViewChange }) {
         const json = await res.json();
         const updatedView = json.data;
         setViews((prev) => prev.map((v) => (v.id === viewId ? updatedView : v)));
-        setCurrentView((current) => {
-            if (current?.id === viewId) {
-                onViewChangeRef.current?.(updatedView);
-                return updatedView;
-            }
-            return current;
-        });
+        setCurrentView((current) => (current?.id === viewId ? updatedView : current));
         return updatedView;
     }, []);
     const deleteView = useCallback(async (viewId) => {
@@ -229,26 +229,19 @@ export function useTableView({ tableId, onViewChange }) {
             const json = await res.json().catch(() => ({}));
             throw new Error(json?.error || 'Failed to delete view');
         }
-        setViews((prev) => {
-            const remaining = prev.filter((v) => v.id !== viewId);
-            setCurrentView((current) => {
-                if (current?.id === viewId) {
-                    // Don't auto-fall back to any "default" view. If the selected view was deleted,
-                    // return to "All Items" and let the user explicitly pick another view.
-                    const newCurrentView = null;
-                    onViewChangeRef.current?.(newCurrentView);
-                    persistCurrentSelection(tableId, newCurrentView);
-                    return newCurrentView;
-                }
+        setViews((prev) => prev.filter((v) => v.id !== viewId));
+        setCurrentView((current) => {
+            if (current?.id !== viewId)
                 return current;
-            });
-            return remaining;
+            // Don't auto-fall back to any "default" view. If the selected view was deleted,
+            // return to "All Items" and let the user explicitly pick another view.
+            persistCurrentSelection(tableId, null);
+            return null;
         });
     }, [tableId]);
     const selectView = useCallback(async (view) => {
         console.log(`[useTableView ${instanceId.current}] selectView called - selecting: ${view?.name}`);
         setCurrentView(view);
-        onViewChangeRef.current?.(view);
         // Cache the selection so it persists across remounts AND page refreshes
         persistCurrentSelection(tableId, view);
         if (view) {

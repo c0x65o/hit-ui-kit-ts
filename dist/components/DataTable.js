@@ -333,10 +333,15 @@ tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupBy
         if (!tableId)
             return;
         const visibleBucketKeys = Object.keys(bucketColumns || {}).filter((k) => columnVisibility?.[k] === true);
+        // Ensure we evaluate the groupBy bucket column even when it's hidden so client-side grouping can still work.
+        const groupField = groupBy?.field;
+        if (groupField && bucketColumns?.[groupField] && !visibleBucketKeys.includes(groupField)) {
+            visibleBucketKeys.push(groupField);
+        }
         if (!visibleBucketKeys.length)
             return;
         const bucketGroupMetaLocal = groupBy && tableId ? bucketColumns[groupBy.field] : null;
-        const isServerBucketGroupLocal = Boolean(groupBy && tableId && bucketGroupMetaLocal && bucketGroupMetaLocal.entityKind);
+        const isServerBucketGroupLocal = Boolean(groupBy && tableId && bucketGroupMetaLocal && bucketGroupMetaLocal.entityKind && !bucketGroupError);
         const serverRows = isServerBucketGroupLocal
             ? Object.values(bucketGroupBySeg || {}).flatMap((g) => (Array.isArray(g?.rows) ? g.rows : []))
             : [];
@@ -392,7 +397,7 @@ tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupBy
         return () => {
             cancelled = true;
         };
-    }, [tableId, data, bucketColumns, columnVisibility, groupBy?.field, bucketGroupBySeg]);
+    }, [tableId, data, bucketColumns, columnVisibility, groupBy?.field, bucketGroupBySeg, bucketGroupError]);
     // Evaluate metric values for visible metric columns on current page rows (best-effort, non-sorting).
     useEffect(() => {
         if (!tableId)
@@ -401,7 +406,7 @@ tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupBy
         if (!visibleMetricKeys.length)
             return;
         const bucketGroupMetaLocal = groupBy && tableId ? bucketColumns[groupBy.field] : null;
-        const isServerBucketGroupLocal = Boolean(groupBy && tableId && bucketGroupMetaLocal && bucketGroupMetaLocal.entityKind);
+        const isServerBucketGroupLocal = Boolean(groupBy && tableId && bucketGroupMetaLocal && bucketGroupMetaLocal.entityKind && !bucketGroupError);
         const serverRows = isServerBucketGroupLocal
             ? Object.values(bucketGroupBySeg || {}).flatMap((g) => (Array.isArray(g?.rows) ? g.rows : []))
             : [];
@@ -457,7 +462,7 @@ tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupBy
         return () => {
             cancelled = true;
         };
-    }, [tableId, data, metricColumns, columnVisibility, groupBy?.field, bucketColumns, bucketGroupBySeg]);
+    }, [tableId, data, metricColumns, columnVisibility, groupBy?.field, bucketColumns, bucketGroupBySeg, bucketGroupError]);
     const augmentedData = useMemo(() => {
         const bucketKeys = Object.keys(bucketColumns || {});
         const metricKeys = Object.keys(metricColumns || {});
@@ -495,6 +500,9 @@ tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupBy
     }, [data, bucketColumns, bucketValues, metricColumns, metricValues]);
     const bucketGroupMeta = groupBy && tableId ? bucketColumns[groupBy.field] : null;
     const isServerBucketGroup = Boolean(groupBy && tableId && bucketGroupMeta && bucketGroupMeta.entityKind);
+    // If server-side bucket grouping fails (common for non-admin users), fall back to client-side rows
+    // rather than rendering an empty table.
+    const isServerBucketGroupActive = isServerBucketGroup && !bucketGroupError;
     async function fetchBucketGroups(pages) {
         if (!tableId || !groupBy || !bucketGroupMeta?.entityKind)
             return;
@@ -599,7 +607,7 @@ tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupBy
     }, [externalPage, manualPagination, pageSize]);
     // Initialize collapsed groups if defaultCollapsed is true
     useEffect(() => {
-        if (groupBy?.defaultCollapsed && isServerBucketGroup) {
+        if (groupBy?.defaultCollapsed && isServerBucketGroupActive) {
             const keys = bucketGroupOrder.length ? bucketGroupOrder : Object.keys(bucketGroupBySeg || {});
             if (keys.length > 0) {
                 setCollapsedGroups(new Set(keys));
@@ -615,7 +623,7 @@ tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupBy
             }
             setCollapsedGroups(groups);
         }
-    }, [groupBy?.defaultCollapsed, groupBy?.field, data, isServerBucketGroup, bucketGroupOrder, bucketGroupBySeg]);
+    }, [groupBy?.defaultCollapsed, groupBy?.field, data, isServerBucketGroupActive, bucketGroupOrder, bucketGroupBySeg]);
     // Convert columns to TanStack Table format
     const tableColumns = useMemo(() => {
         const base = columns.map((col) => ({
@@ -699,7 +707,7 @@ tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupBy
             }));
         }
         // Server-side grouping for bucket columns
-        if (isServerBucketGroup) {
+        if (isServerBucketGroupActive) {
             const result = [];
             const order = bucketGroupOrder.length ? bucketGroupOrder : Object.keys(bucketGroupBySeg || {});
             for (const segmentKey of order) {
@@ -835,7 +843,7 @@ tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupBy
             }
         }
         return result;
-    }, [groupBy, table, collapsedGroups, globalFilter, sorting, pagination, groupPages, groupPageSize, isServerBucketGroup, bucketGroupBySeg, bucketGroupOrder, bucketGroupPages]);
+    }, [groupBy, table, collapsedGroups, globalFilter, sorting, pagination, groupPages, groupPageSize, isServerBucketGroupActive, bucketGroupBySeg, bucketGroupOrder, bucketGroupPages]);
     // Export to CSV
     const handleExport = () => {
         const visibleColumns = table.getVisibleFlatColumns();
@@ -982,15 +990,20 @@ tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupBy
                                             .getAllColumns()
                                             .filter((col) => col.getCanHide())
                                             .map((col) => {
+                                            // Hide "action" columns (often have empty header/label) from the column picker.
                                             const header = col?.columnDef?.header;
-                                            const label = typeof header === 'string' ? header.trim() : typeof header === 'number' ? String(header) : '';
+                                            const label = typeof header === 'string'
+                                                ? header.trim()
+                                                : typeof header === 'number'
+                                                    ? String(header)
+                                                    : '';
                                             if (!label)
                                                 return null;
-                                            return ({
+                                            return {
                                                 label,
                                                 icon: col.getIsVisible() ? _jsx(Eye, { size: 14 }) : _jsx(EyeOff, { size: 14 }),
                                                 onClick: () => col.toggleVisibility(),
-                                            });
+                                            };
                                         })
                                             .filter(Boolean) })), exportable && hasData && (_jsxs(Button, { variant: "secondary", size: "sm", onClick: handleExport, children: [_jsx(Download, { size: 16, style: { marginRight: spacing.xs } }), "Export CSV"] }))] })] })), _jsx("div", { style: { overflowX: 'auto', border: `1px solid ${colors.border.subtle}`, borderRadius: spacing.sm }, children: showLoadingState ? (_jsx("div", { style: styles({
                                 display: 'flex',

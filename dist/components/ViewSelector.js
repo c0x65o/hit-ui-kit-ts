@@ -1,7 +1,7 @@
 'use client';
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useState, useEffect } from 'react';
-import { ChevronDown, Plus, Edit2, Trash2, Star, Filter, Trash, Eye, EyeOff, Columns, Layers, Share2, Users, ArrowUpDown } from 'lucide-react';
+import { ChevronDown, Plus, Edit2, Trash2, Star, Filter, Trash, Eye, EyeOff, Columns, Layers, Share2, Users, ArrowUpDown, Check } from 'lucide-react';
 import { useTableView } from '../hooks/useTableView';
 import { useThemeTokens } from '../theme/index.js';
 import { useAlertDialog } from '../hooks/useAlertDialog.js';
@@ -421,7 +421,7 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
             borderRadius: radius.sm,
         }),
     };
-    return (_jsxs("div", { style: { position: 'relative' }, children: [_jsxs(Button, { variant: "secondary", size: "sm", disabled: loading, onClick: () => setDropdownOpen(!dropdownOpen), children: [_jsx(Filter, { size: 14, style: { marginRight: spacing.xs } }), currentView?.name || allLabel, _jsx(ChevronDown, { size: 14, style: { marginLeft: spacing.xs } })] }), dropdownOpen && (_jsxs(_Fragment, { children: [_jsx("div", { onClick: () => setDropdownOpen(false), style: styles({ position: 'fixed', inset: 0, zIndex: 40 }) }), _jsxs("div", { style: dropdownStyles.container, children: [_jsx("button", { onClick: () => {
+    return (_jsxs("div", { style: { position: 'relative' }, children: [_jsxs(Button, { variant: "secondary", size: "sm", disabled: loading, onClick: () => setDropdownOpen(!dropdownOpen), children: [_jsx(Filter, { size: 14, style: { marginRight: spacing.xs } }), currentView?.name || allLabel, _jsx(ChevronDown, { size: 14, style: { marginLeft: spacing.xs } })] }), dropdownOpen && (_jsxs(_Fragment, { children: [_jsx("div", { onClick: () => setDropdownOpen(false), style: styles({ position: 'fixed', inset: 0, zIndex: 40 }) }), _jsxs("div", { style: dropdownStyles.container, children: [_jsxs("button", { onClick: () => {
                                     selectView(null);
                                     setDropdownOpen(false);
                                 }, style: styles({
@@ -432,73 +432,86 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
                                     e.currentTarget.style.backgroundColor = colors.bg.elevated;
                                 }, onMouseLeave: (e) => {
                                     e.currentTarget.style.backgroundColor = currentView === null ? colors.bg.elevated : 'transparent';
-                                }, children: _jsx("span", { style: { flex: 1 }, children: allLabel }) }), views.length === 0 && !loading && (_jsx("div", { style: styles({
+                                }, children: [currentView === null && _jsx(Check, { size: 14, style: { color: colors.primary.default } }), _jsx("span", { style: { flex: 1 }, children: allLabel })] }), views.length === 0 && !loading && (_jsx("div", { style: styles({
                                     padding: spacing.md,
                                     textAlign: 'center',
                                     color: colors.text.muted,
                                     fontSize: ts.bodySmall.fontSize,
                                     borderTop: `1px solid ${colors.border.subtle}`,
-                                }), children: "No views yet. Create your first view to save filters and column preferences." })), systemViews.length > 0 && (_jsxs(_Fragment, { children: [_jsx("div", { style: dropdownStyles.sectionHeader, children: "Default Views" }), systemViews.map((view) => (_jsxs("button", { onClick: () => {
-                                            selectView(view);
-                                            setDropdownOpen(false);
-                                        }, style: styles({
-                                            ...dropdownStyles.viewItem,
-                                            backgroundColor: currentView?.id === view.id ? colors.bg.elevated : 'transparent',
-                                        }), onMouseEnter: (e) => {
-                                            e.currentTarget.style.backgroundColor = colors.bg.elevated;
-                                        }, onMouseLeave: (e) => {
-                                            e.currentTarget.style.backgroundColor =
-                                                currentView?.id === view.id ? colors.bg.elevated : 'transparent';
-                                        }, children: [view.isDefault && _jsx(Star, { size: 14, style: { color: colors.primary.default } }), _jsx("span", { style: { flex: 1 }, children: view.name }), view.filters?.length > 0 && (_jsxs("span", { style: styles({ fontSize: ts.bodySmall.fontSize, color: colors.text.muted }), children: [view.filters.length, " filter", view.filters.length !== 1 ? 's' : ''] }))] }, view.id)))] })), customViews.length > 0 && (_jsxs(_Fragment, { children: [_jsx("div", { style: styles({
+                                }), children: "No views yet. Create your first view to save filters and column preferences." })), systemViews.length > 0 && (_jsxs(_Fragment, { children: [_jsx("div", { style: dropdownStyles.sectionHeader, children: "Default Views" }), systemViews.map((view) => {
+                                        const isSelected = currentView?.id === view.id;
+                                        return (_jsxs("button", { onClick: () => {
+                                                selectView(view);
+                                                setDropdownOpen(false);
+                                            }, style: styles({
+                                                ...dropdownStyles.viewItem,
+                                                backgroundColor: isSelected ? colors.bg.elevated : 'transparent',
+                                                fontWeight: isSelected ? ts.label.fontWeight : 'normal',
+                                            }), onMouseEnter: (e) => {
+                                                e.currentTarget.style.backgroundColor = colors.bg.elevated;
+                                            }, onMouseLeave: (e) => {
+                                                e.currentTarget.style.backgroundColor =
+                                                    isSelected ? colors.bg.elevated : 'transparent';
+                                            }, children: [isSelected ? (_jsx(Check, { size: 14, style: { color: colors.primary.default } })) : view.isDefault ? (_jsx(Star, { size: 14, style: { color: colors.primary.default } })) : (_jsx("span", { style: { width: 14 } })), _jsx("span", { style: { flex: 1 }, children: view.name }), view.filters?.length > 0 && (_jsxs("span", { style: styles({ fontSize: ts.bodySmall.fontSize, color: colors.text.muted }), children: [view.filters.length, " filter", view.filters.length !== 1 ? 's' : ''] }))] }, view.id));
+                                    })] })), customViews.length > 0 && (_jsxs(_Fragment, { children: [_jsx("div", { style: styles({
                                             ...dropdownStyles.sectionHeader,
                                             borderTop: systemViews.length > 0 ? `1px solid ${colors.border.subtle}` : undefined,
-                                        }), children: "My Views" }), customViews.map((view) => (_jsxs("div", { style: styles({
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            padding: `${spacing.xs} ${spacing.sm} ${spacing.xs} ${spacing.md}`,
-                                            backgroundColor: currentView?.id === view.id ? colors.bg.elevated : 'transparent',
-                                            transition: 'background-color 150ms ease',
-                                        }), onMouseEnter: (e) => {
-                                            e.currentTarget.style.backgroundColor = colors.bg.elevated;
-                                        }, onMouseLeave: (e) => {
-                                            e.currentTarget.style.backgroundColor =
-                                                currentView?.id === view.id ? colors.bg.elevated : 'transparent';
-                                        }, children: [_jsxs("button", { onClick: () => {
-                                                    selectView(view);
-                                                    setDropdownOpen(false);
-                                                }, style: styles({
-                                                    flex: 1,
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: spacing.xs,
-                                                    padding: `${spacing.xs} 0`,
-                                                    fontSize: ts.body.fontSize,
-                                                    textAlign: 'left',
-                                                    color: colors.text.secondary,
-                                                    background: 'none',
-                                                    border: 'none',
-                                                    cursor: 'pointer',
-                                                }), children: [_jsx("span", { style: { flex: 1 }, children: view.name }), view.filters?.length > 0 && (_jsxs("span", { style: styles({ fontSize: ts.bodySmall.fontSize, color: colors.text.muted }), children: [view.filters.length, " filter", view.filters.length !== 1 ? 's' : ''] }))] }), _jsx("button", { onClick: (e) => handleEdit(view, e), style: dropdownStyles.iconButton, title: "Edit view", children: _jsx(Edit2, { size: 14 }) }), _jsx("button", { onClick: (e) => handleDelete(view, e), style: styles({ ...dropdownStyles.iconButton, color: colors.error?.default || '#ef4444' }), title: "Delete view", children: _jsx(Trash2, { size: 14 }) })] }, view.id)))] })), sharedViews.length > 0 && (_jsxs(_Fragment, { children: [_jsx("div", { style: styles({
+                                        }), children: "My Views" }), customViews.map((view) => {
+                                        const isSelected = currentView?.id === view.id;
+                                        return (_jsxs("div", { style: styles({
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                padding: `${spacing.xs} ${spacing.sm} ${spacing.xs} ${spacing.md}`,
+                                                backgroundColor: isSelected ? colors.bg.elevated : 'transparent',
+                                                transition: 'background-color 150ms ease',
+                                            }), onMouseEnter: (e) => {
+                                                e.currentTarget.style.backgroundColor = colors.bg.elevated;
+                                            }, onMouseLeave: (e) => {
+                                                e.currentTarget.style.backgroundColor =
+                                                    isSelected ? colors.bg.elevated : 'transparent';
+                                            }, children: [isSelected ? (_jsx(Check, { size: 14, style: { color: colors.primary.default, marginRight: spacing.xs } })) : (_jsx("span", { style: { width: 14, marginRight: spacing.xs } })), _jsxs("button", { onClick: () => {
+                                                        selectView(view);
+                                                        setDropdownOpen(false);
+                                                    }, style: styles({
+                                                        flex: 1,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: spacing.xs,
+                                                        padding: `${spacing.xs} 0`,
+                                                        fontSize: ts.body.fontSize,
+                                                        fontWeight: isSelected ? ts.label.fontWeight : 'normal',
+                                                        textAlign: 'left',
+                                                        color: colors.text.secondary,
+                                                        background: 'none',
+                                                        border: 'none',
+                                                        cursor: 'pointer',
+                                                    }), children: [_jsx("span", { style: { flex: 1 }, children: view.name }), view.filters?.length > 0 && (_jsxs("span", { style: styles({ fontSize: ts.bodySmall.fontSize, color: colors.text.muted }), children: [view.filters.length, " filter", view.filters.length !== 1 ? 's' : ''] }))] }), _jsx("button", { onClick: (e) => handleEdit(view, e), style: dropdownStyles.iconButton, title: "Edit view", children: _jsx(Edit2, { size: 14 }) }), _jsx("button", { onClick: (e) => handleDelete(view, e), style: styles({ ...dropdownStyles.iconButton, color: colors.error?.default || '#ef4444' }), title: "Delete view", children: _jsx(Trash2, { size: 14 }) })] }, view.id));
+                                    })] })), sharedViews.length > 0 && (_jsxs(_Fragment, { children: [_jsx("div", { style: styles({
                                             ...dropdownStyles.sectionHeader,
                                             borderTop: `1px solid ${colors.border.subtle}`,
-                                        }), children: _jsxs("span", { style: { display: 'flex', alignItems: 'center', gap: spacing.xs }, children: [_jsx(Users, { size: 12 }), "Shared with me"] }) }), sharedViews.map((view) => (_jsxs("button", { onClick: () => {
-                                            selectView(view);
-                                            setDropdownOpen(false);
-                                        }, style: styles({
-                                            ...dropdownStyles.viewItem,
-                                            backgroundColor: currentView?.id === view.id ? colors.bg.elevated : 'transparent',
-                                            flexDirection: 'column',
-                                            alignItems: 'flex-start',
-                                            gap: spacing.xs,
-                                        }), onMouseEnter: (e) => {
-                                            e.currentTarget.style.backgroundColor = colors.bg.elevated;
-                                        }, onMouseLeave: (e) => {
-                                            e.currentTarget.style.backgroundColor =
-                                                currentView?.id === view.id ? colors.bg.elevated : 'transparent';
-                                        }, children: [_jsxs("span", { style: { display: 'flex', alignItems: 'center', gap: spacing.sm, width: '100%' }, children: [_jsx("span", { style: { flex: 1 }, children: view.name }), view.filters?.length > 0 && (_jsxs("span", { style: styles({ fontSize: ts.bodySmall.fontSize, color: colors.text.muted }), children: [view.filters.length, " filter", view.filters.length !== 1 ? 's' : ''] }))] }), _jsxs("span", { style: styles({
-                                                    fontSize: '11px',
-                                                    color: colors.text.muted,
-                                                }), children: ["Shared by ", view._sharedByName || view._sharedBy || 'someone'] })] }, view.id)))] })), _jsx("div", { style: styles({ borderTop: `1px solid ${colors.border.subtle}`, padding: spacing.xs }), children: _jsxs("button", { onClick: handleCreateNew, style: styles({
+                                        }), children: _jsxs("span", { style: { display: 'flex', alignItems: 'center', gap: spacing.xs }, children: [_jsx(Users, { size: 12 }), "Shared with me"] }) }), sharedViews.map((view) => {
+                                        const isSelected = currentView?.id === view.id;
+                                        return (_jsxs("button", { onClick: () => {
+                                                selectView(view);
+                                                setDropdownOpen(false);
+                                            }, style: styles({
+                                                ...dropdownStyles.viewItem,
+                                                backgroundColor: isSelected ? colors.bg.elevated : 'transparent',
+                                                fontWeight: isSelected ? ts.label.fontWeight : 'normal',
+                                                flexDirection: 'column',
+                                                alignItems: 'flex-start',
+                                                gap: spacing.xs,
+                                            }), onMouseEnter: (e) => {
+                                                e.currentTarget.style.backgroundColor = colors.bg.elevated;
+                                            }, onMouseLeave: (e) => {
+                                                e.currentTarget.style.backgroundColor =
+                                                    isSelected ? colors.bg.elevated : 'transparent';
+                                            }, children: [_jsxs("span", { style: { display: 'flex', alignItems: 'center', gap: spacing.sm, width: '100%' }, children: [isSelected && _jsx(Check, { size: 14, style: { color: colors.primary.default } }), _jsx("span", { style: { flex: 1 }, children: view.name }), view.filters?.length > 0 && (_jsxs("span", { style: styles({ fontSize: ts.bodySmall.fontSize, color: colors.text.muted }), children: [view.filters.length, " filter", view.filters.length !== 1 ? 's' : ''] }))] }), _jsxs("span", { style: styles({
+                                                        fontSize: '11px',
+                                                        color: colors.text.muted,
+                                                        marginLeft: isSelected ? 22 : 0,
+                                                    }), children: ["Shared by ", view._sharedByName || view._sharedBy || 'someone'] })] }, view.id));
+                                    })] })), _jsx("div", { style: styles({ borderTop: `1px solid ${colors.border.subtle}`, padding: spacing.xs }), children: _jsxs("button", { onClick: handleCreateNew, style: styles({
                                         ...dropdownStyles.viewItem,
                                         borderRadius: radius.md,
                                         color: colors.primary.default,
