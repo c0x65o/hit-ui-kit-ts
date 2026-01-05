@@ -29,3 +29,17 @@ export type { ErrorLogEntry, ErrorLogState, ErrorLogActions } from './useErrorLo
 
 export { useTrackedFetch, installGlobalFetchInterceptor } from './useTrackedFetch';
 export type { TrackedFetchOptions } from './useTrackedFetch';
+
+export {
+  LatencyLogProvider,
+  useLatencyLog,
+  getCurrentPageUrl as getLatencyPageUrl,
+  formatDuration,
+  getLatencySeverity,
+} from './useLatencyLog';
+export type {
+  LatencyLogEntry,
+  LatencyLogState,
+  LatencyLogActions,
+  LatencySource,
+} from './useLatencyLog';

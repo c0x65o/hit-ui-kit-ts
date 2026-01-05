@@ -211,6 +211,21 @@ export type { ErrorLogEntry, ErrorLogState, ErrorLogActions } from './hooks/useE
 export { useTrackedFetch, installGlobalFetchInterceptor } from './hooks/useTrackedFetch';
 export type { TrackedFetchOptions } from './hooks/useTrackedFetch';
 
+// Latency Logging
+export {
+  LatencyLogProvider,
+  useLatencyLog,
+  getCurrentPageUrl as getLatencyPageUrl,
+  formatDuration,
+  getLatencySeverity,
+} from './hooks/useLatencyLog';
+export type {
+  LatencyLogEntry,
+  LatencyLogState,
+  LatencyLogActions,
+  LatencySource,
+} from './hooks/useLatencyLog';
+
 // Components (for direct imports)
 export {
   Page,
