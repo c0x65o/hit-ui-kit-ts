@@ -168,7 +168,7 @@ export function Select({
         border: `1px solid ${colors.border.subtle}`,
         borderRadius: radius.md,
         boxShadow: shadows.xl,
-        maxHeight: '240px',
+        maxHeight: '400px',
         overflowY: 'auto',
         outline: 'none',
       })}
