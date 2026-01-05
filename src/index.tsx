@@ -226,6 +226,9 @@ export type {
   LatencySource,
 } from './hooks/useLatencyLog';
 
+export { useLatencyTrackedFetch, createLatencyTrackedFetch } from './hooks/useLatencyTrackedFetch';
+export type { LatencyTrackedFetchOptions, LatencyTrackerConfig } from './hooks/useLatencyTrackedFetch';
+
 // Components (for direct imports)
 export {
   Page,

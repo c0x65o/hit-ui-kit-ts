@@ -43,3 +43,6 @@ export type {
   LatencyLogActions,
   LatencySource,
 } from './useLatencyLog';
+
+export { useLatencyTrackedFetch, createLatencyTrackedFetch } from './useLatencyTrackedFetch';
+export type { LatencyTrackedFetchOptions, LatencyTrackerConfig } from './useLatencyTrackedFetch';

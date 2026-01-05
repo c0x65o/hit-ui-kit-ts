@@ -2,6 +2,7 @@
 
 import { useCallback, useRef } from 'react';
 import { useErrorLog, useCurrentUserEmail, getCurrentPageUrl } from './useErrorLog';
+import type { LatencyLogEntry, LatencySource } from './useLatencyLog';
 
 /**
  * Options for tracked fetch
@@ -184,11 +185,60 @@ function extractPayload(body: BodyInit | null | undefined): unknown {
   return { _type: body.constructor?.name || 'unknown' };
 }
 
+// =============================================================================
+// LATENCY CLASSIFICATION HELPERS
+// =============================================================================
+
+/**
+ * Classify a URL into a latency source type
+ */
+function classifyLatencySource(url: string): LatencySource {
+  const path = url.toLowerCase();
+  
+  // Module calls (proxy routes to backend modules)
+  if (path.includes('/api/proxy/') || path.includes('/hit/')) {
+    return 'module';
+  }
+  
+  // Database-heavy endpoints (heuristic based on common patterns)
+  if (
+    path.includes('/query') ||
+    path.includes('/batch') ||
+    path.includes('/entries') ||
+    path.includes('/drilldown') ||
+    path.includes('/catalog') ||
+    path.includes('/definitions')
+  ) {
+    return 'db';
+  }
+  
+  // Default to API
+  return 'api';
+}
+
+/**
+ * Extract module name from URL if it's a module call
+ */
+function extractModuleName(url: string): string | undefined {
+  // Pattern: /api/proxy/{module}/... or /hit/{module}/...
+  const proxyMatch = url.match(/\/api\/proxy\/([^\/]+)/);
+  if (proxyMatch) return proxyMatch[1];
+  
+  const hitMatch = url.match(/\/hit\/([^\/]+)/);
+  if (hitMatch) return hitMatch[1];
+  
+  return undefined;
+}
+
+// =============================================================================
+// GLOBAL FETCH INTERCEPTOR
+// =============================================================================
+
 /**
  * Create a global fetch interceptor.
  * 
  * Call this once at app initialization to intercept ALL fetch calls globally.
- * This is optional - use useTrackedFetch for more control.
+ * This handles both error logging and latency tracking (for slow requests).
  * 
  * @example
  * ```tsx
@@ -197,6 +247,8 @@ function extractPayload(body: BodyInit | null | undefined): unknown {
  * 
  * installGlobalFetchInterceptor({
  *   getLogError: () => window.__HIT_LOG_ERROR__,
+ *   getLogLatency: () => window.__HIT_LOG_LATENCY__,
+ *   getSlowThreshold: () => 500,
  *   getUserEmail: () => window.__HIT_USER_EMAIL__,
  * });
  * ```
@@ -205,10 +257,17 @@ export function installGlobalFetchInterceptor(options: {
   getLogError: () => ((entry: Parameters<ReturnType<typeof useErrorLog>['logError']>[0]) => void) | undefined;
   getUserEmail: () => string | undefined;
   shouldIntercept?: (url: string, init?: RequestInit) => boolean;
+  /** Latency logging (optional) - only logs slow requests */
+  getLogLatency?: () => ((entry: Omit<LatencyLogEntry, 'id' | 'timestamp' | 'isSlow'>) => void) | undefined;
+  /** Get slow threshold in ms (default: 500) */
+  getSlowThreshold?: () => number;
+  /** Only log slow requests for latency (default: true) */
+  latencySlowOnly?: boolean;
 }) {
   if (typeof window === 'undefined') return;
 
   const originalFetch = window.fetch;
+  const latencySlowOnly = options.latencySlowOnly ?? true;
 
   window.fetch = async function (
     input: RequestInfo | URL,
@@ -228,7 +287,7 @@ export function installGlobalFetchInterceptor(options: {
       const response = await originalFetch(input, init);
       const responseTimeMs = Date.now() - startTime;
 
-      // Log non-2xx responses
+      // Log non-2xx responses (error log)
       if (!response.ok) {
         const logError = options.getLogError();
         if (logError) {
@@ -263,6 +322,30 @@ export function installGlobalFetchInterceptor(options: {
         }
       }
 
+      // Log latency for slow requests
+      const logLatency = options.getLogLatency?.();
+      if (logLatency) {
+        const threshold = options.getSlowThreshold?.() ?? 500;
+        const isSlow = responseTimeMs >= threshold;
+
+        if (!latencySlowOnly || isSlow) {
+          const source = classifyLatencySource(url);
+          const moduleName = extractModuleName(url);
+
+          logLatency({
+            userEmail: options.getUserEmail(),
+            pageUrl: getCurrentPageUrl(),
+            status: response.status,
+            durationMs: responseTimeMs,
+            endpoint: url,
+            method,
+            source,
+            moduleName,
+            responseSize: parseInt(response.headers.get('content-length') || '0', 10) || undefined,
+          });
+        }
+      }
+
       return response;
     } catch (error) {
       const responseTimeMs = Date.now() - startTime;
@@ -280,6 +363,27 @@ export function installGlobalFetchInterceptor(options: {
           responseTimeMs,
           rawError: error instanceof Error ? { name: error.name, message: error.message } : error,
           source: 'fetch',
+        });
+      }
+
+      // Also log latency for failed requests (network errors are notable)
+      const logLatency = options.getLogLatency?.();
+      if (logLatency) {
+        const source = classifyLatencySource(url);
+        const moduleName = extractModuleName(url);
+
+        logLatency({
+          userEmail: options.getUserEmail(),
+          pageUrl: getCurrentPageUrl(),
+          status: 0,
+          durationMs: responseTimeMs,
+          endpoint: url,
+          method,
+          source,
+          moduleName,
+          metadata: {
+            error: error instanceof Error ? error.message : String(error),
+          },
         });
       }
 
