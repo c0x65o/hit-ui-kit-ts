@@ -48,3 +48,5 @@ export { useLatencyTrackedFetch, createLatencyTrackedFetch } from './useLatencyT
 export type { LatencyTrackedFetchOptions, LatencyTrackerConfig } from './useLatencyTrackedFetch';
 
 export { useTableFilters } from './useTableFilters';
+
+export { useDebounce, useDebouncedCallback } from './useDebounce';

@@ -6,7 +6,7 @@ import { useThemeTokens } from '../theme/index.js';
 import { styles } from './utils';
 import { Button } from './Button';
 import { Autocomplete } from './Autocomplete';
-import type { GlobalFilterConfig } from '../types';
+import type { GlobalFilterConfig, FilterOperator } from '../types';
 
 export interface FilterDropdownProps {
   /** Table ID for localStorage persistence */
@@ -133,8 +133,40 @@ export function FilterDropdown({ tableId, filters, values, onChange, columns }: 
       filterOptions: filter.filterOptions || col?.filterOptions || [],
       onSearch: filter.onSearch || col?.onSearch,
       resolveValue: filter.resolveValue || col?.resolveValue,
+      showOperator: filter.showOperator ?? false,
+      defaultOperator: filter.defaultOperator,
     };
   };
+
+  // Helper to parse operator:value format
+  const parseOperatorValue = (value: string | undefined, defaultOp: FilterOperator): { operator: FilterOperator; value: string } => {
+    if (!value) return { operator: defaultOp, value: '' };
+    const colonIdx = value.indexOf(':');
+    if (colonIdx > 0) {
+      const op = value.substring(0, colonIdx) as FilterOperator;
+      const validOps: FilterOperator[] = ['equals', 'notEquals', 'contains', 'notContains', 'startsWith', 'endsWith', 'greaterThan', 'lessThan', 'greaterThanOrEqual', 'lessThanOrEqual'];
+      if (validOps.includes(op)) {
+        return { operator: op, value: value.substring(colonIdx + 1) };
+      }
+    }
+    return { operator: defaultOp, value: value };
+  };
+
+  // Helper to format operator:value
+  const formatOperatorValue = (operator: FilterOperator, value: string): string => {
+    if (!value) return '';
+    return `${operator}:${value}`;
+  };
+
+  // Operator options for string filters
+  const stringOperatorOptions: Array<{ value: FilterOperator; label: string }> = [
+    { value: 'contains', label: 'Contains' },
+    { value: 'equals', label: 'Equals' },
+    { value: 'startsWith', label: 'Starts with' },
+    { value: 'endsWith', label: 'Ends with' },
+    { value: 'notContains', label: 'Does not contain' },
+    { value: 'notEquals', label: 'Not equals' },
+  ];
 
   const updateFilter = (columnKey: string, value: string | string[]) => {
     const next = { ...localValues };
@@ -205,8 +237,65 @@ export function FilterDropdown({ tableId, filters, values, onChange, columns }: 
     const currentValue = localValues[filter.columnKey];
     const key = filter.columnKey;
 
-    // String filter with search icon
+    // String filter with optional operator support
     if (config.filterType === 'string') {
+      const defaultOp: FilterOperator = config.defaultOperator || 'contains';
+      
+      // Check if operator mode is enabled for this filter
+      if (config.showOperator) {
+        const parsed = parseOperatorValue(typeof currentValue === 'string' ? currentValue : undefined, defaultOp);
+        
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <select
+              value={parsed.operator}
+              onChange={(e) => {
+                const newOp = e.target.value as FilterOperator;
+                if (parsed.value) {
+                  updateFilter(key, formatOperatorValue(newOp, parsed.value));
+                }
+              }}
+              style={{ ...inputStyle, height: '28px', fontSize: '11px' }}
+            >
+              {stringOperatorOptions.map((op) => (
+                <option key={op.value} value={op.value}>{op.label}</option>
+              ))}
+            </select>
+            <div style={{ position: 'relative' }}>
+              <Search 
+                size={12} 
+                style={{
+                  position: 'absolute',
+                  left: '8px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: colors.text.muted,
+                  pointerEvents: 'none',
+                }}
+              />
+              <input
+                type="text"
+                value={parsed.value}
+                onChange={(e) => {
+                  const newVal = e.target.value;
+                  if (newVal) {
+                    updateFilter(key, formatOperatorValue(parsed.operator, newVal));
+                  } else {
+                    updateFilter(key, '');
+                  }
+                }}
+                placeholder="Search..."
+                style={{
+                  ...inputStyle,
+                  paddingLeft: '28px',
+                }}
+              />
+            </div>
+          </div>
+        );
+      }
+      
+      // Simple string filter without operator (default behavior)
       return (
         <div style={{ position: 'relative' }}>
           <Search 

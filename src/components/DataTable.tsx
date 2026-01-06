@@ -36,6 +36,7 @@ import { Dropdown } from './Dropdown';
 import { ViewSelector } from './ViewSelector';
 import { FilterDropdown } from './FilterDropdown';
 import { useTableFilters } from '../hooks/useTableFilters';
+import { useDebounce } from '../hooks/useDebounce';
 import type { DataTableProps, GlobalFilterConfig } from '../types';
 import type { TableView } from '../hooks/useTableView';
 
@@ -122,6 +123,8 @@ export function DataTable<TData extends Record<string, unknown>>({
   searchable = true,
   exportable = true,
   showColumnVisibility = true,
+  searchDebounceMs = 300,
+  onSearchChange,
   onRowClick,
   emptyMessage = 'No data available',
   loading = false,
@@ -165,6 +168,25 @@ export function DataTable<TData extends Record<string, unknown>>({
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(initialColumnVisibility || {});
   const [globalFilter, setGlobalFilter] = useState('');
+  
+  // Debounced search for server-side filtering
+  const debouncedSearchTerm = useDebounce(globalFilter, searchDebounceMs);
+  
+  // Notify parent of search changes (for server-side filtering)
+  const prevDebouncedRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    // Only call onSearchChange if manualPagination is enabled and value changed
+    if (!manualPagination || !onSearchChange) return;
+    // Avoid calling on initial mount with empty string
+    if (prevDebouncedRef.current === undefined && debouncedSearchTerm === '') {
+      prevDebouncedRef.current = '';
+      return;
+    }
+    if (prevDebouncedRef.current !== debouncedSearchTerm) {
+      prevDebouncedRef.current = debouncedSearchTerm;
+      onSearchChange(debouncedSearchTerm);
+    }
+  }, [debouncedSearchTerm, manualPagination, onSearchChange]);
   
   // Get filters from centralized registry (if tableId is provided)
   const { filters: registryFilters, hasFilters: hasRegistryFilters } = useTableFilters(tableId);
@@ -877,12 +899,41 @@ export function DataTable<TData extends Record<string, unknown>>({
           return rowValue === filterStr;
         };
       default:
-        // String - includes match (case-insensitive)
+        // String - supports operator:value format (e.g., "contains:john")
+        // Falls back to includes match for backwards compatibility
         return (row: any, columnId: string, filterValue: any) => {
           if (!filterValue) return true;
           const rowValue = String(row.getValue(columnId) ?? '').toLowerCase();
-          const filterStr = String(Array.isArray(filterValue) ? filterValue[0] : filterValue).toLowerCase();
-          return rowValue.includes(filterStr);
+          const filterStr = String(Array.isArray(filterValue) ? filterValue[0] : filterValue);
+          
+          // Check for operator:value format
+          const colonIdx = filterStr.indexOf(':');
+          if (colonIdx > 0) {
+            const op = filterStr.substring(0, colonIdx);
+            const val = filterStr.substring(colonIdx + 1).toLowerCase();
+            if (!val) return true;
+            
+            switch (op) {
+              case 'equals':
+                return rowValue === val;
+              case 'notEquals':
+                return rowValue !== val;
+              case 'contains':
+                return rowValue.includes(val);
+              case 'notContains':
+                return !rowValue.includes(val);
+              case 'startsWith':
+                return rowValue.startsWith(val);
+              case 'endsWith':
+                return rowValue.endsWith(val);
+              default:
+                // Unknown operator, fall through to default behavior
+                break;
+            }
+          }
+          
+          // Default: includes match (case-insensitive)
+          return rowValue.includes(filterStr.toLowerCase());
         };
     }
   };

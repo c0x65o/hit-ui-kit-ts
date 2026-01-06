@@ -151,6 +151,19 @@ export interface TableProps {
   loading?: boolean;
 }
 
+/** Supported filter operators for quick filters */
+export type FilterOperator = 
+  | 'equals' 
+  | 'notEquals' 
+  | 'contains' 
+  | 'notContains' 
+  | 'startsWith' 
+  | 'endsWith'
+  | 'greaterThan'
+  | 'lessThan'
+  | 'greaterThanOrEqual'
+  | 'lessThanOrEqual';
+
 export interface GlobalFilterConfig {
   /** Column key to filter on */
   columnKey: string;
@@ -170,6 +183,14 @@ export interface GlobalFilterConfig {
   defaultValue?: string | string[];
   /** Set to false to exclude this column from auto-generated filters */
   enabled?: boolean;
+  /** 
+   * Allow operator selection for this filter (e.g., contains, startsWith).
+   * When true, value is stored as "operator:value" (e.g., "contains:john").
+   * Default: false for backwards compatibility.
+   */
+  showOperator?: boolean;
+  /** Default operator when showOperator is true (default: 'contains' for string, 'equals' for others) */
+  defaultOperator?: FilterOperator;
 }
 
 export interface DataTableProps<T = Record<string, unknown>> {
@@ -197,6 +218,10 @@ export interface DataTableProps<T = Record<string, unknown>> {
   searchable?: boolean;
   exportable?: boolean;
   showColumnVisibility?: boolean;
+  /** Debounce delay for search input (default: 300ms). Set to 0 to disable debouncing. */
+  searchDebounceMs?: number;
+  /** Callback for server-side search. Receives debounced search term. Only used when manualPagination is true. */
+  onSearchChange?: (searchTerm: string) => void;
   // Global filters
   /** Show global filter bar - auto-generates from columns with filterType + filterOptions/onSearch */
   showGlobalFilters?: boolean;
