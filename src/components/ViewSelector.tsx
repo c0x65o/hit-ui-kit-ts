@@ -46,8 +46,8 @@ export const FILTER_OPERATORS = {
 export interface ViewColumnDefinition {
   key: string;
   label: string;
-  /** Field type: 'string' | 'number' | 'date' | 'boolean' | 'select' | 'multiselect' | 'autocomplete' */
-  type?: 'string' | 'number' | 'date' | 'boolean' | 'select' | 'multiselect' | 'autocomplete';
+  /** Field type: 'string' | 'number' | 'date' | 'daterange' | 'boolean' | 'select' | 'multiselect' | 'autocomplete' */
+  type?: 'string' | 'number' | 'date' | 'daterange' | 'boolean' | 'select' | 'multiselect' | 'autocomplete';
   /** Options for select/multiselect fields (with optional sortOrder for grouping) */
   options?: Array<{ value: string; label: string; sortOrder?: number }>;
   /** Whether this column can be hidden (default: true) */

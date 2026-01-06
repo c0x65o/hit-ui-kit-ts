@@ -1,6 +1,6 @@
 {
   "name": "@hit/ui-kit",
-  "version": "1.0.110",
+  "version": "1.0.111",
   "description": "HIT UI kit",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

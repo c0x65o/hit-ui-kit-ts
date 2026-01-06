@@ -244,6 +244,9 @@ export {
   DataTable,
   Badge,
   Avatar,
+  UserAvatar,
+  clearUserAvatarCache,
+  setUserAvatarCache,
   Alert,
   Modal,
   AlertDialog,
@@ -282,7 +285,7 @@ export {
   styles,
 } from './components';
 
-export type { AuthLayoutProps, AuthCardProps, FormInputProps } from './components';
+export type { AuthLayoutProps, AuthCardProps, FormInputProps, UserAvatarProps } from './components';
 export type { GlobalFilterConfig } from './types';
 
 // Layout Primitive Types

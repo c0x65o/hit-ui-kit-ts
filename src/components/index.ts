@@ -34,6 +34,7 @@ export { Table } from './Table';
 export { DataTable } from './DataTable';
 export { Badge } from './Badge';
 export { Avatar } from './Avatar';
+export { UserAvatar, clearUserAvatarCache, setUserAvatarCache, type UserAvatarProps } from './UserAvatar';
 
 // Feedback
 export { Alert } from './Alert';
