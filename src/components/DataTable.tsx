@@ -37,7 +37,9 @@ import { ViewSelector } from './ViewSelector';
 import { FilterDropdown } from './FilterDropdown';
 import { useTableFilters } from '../hooks/useTableFilters';
 import { useDebounce } from '../hooks/useDebounce';
-import type { DataTableProps, GlobalFilterConfig } from '../types';
+import { useEntityResolver } from '../hooks/useEntityResolver';
+import { getEntityDefinition, getLabelFromRowField, getEntityDetailPath } from '../config/entityRegistry';
+import type { DataTableProps, GlobalFilterConfig, ColumnReferenceConfig } from '../types';
 import type { TableView } from '../hooks/useTableView';
 
 type BucketColumnDef = {

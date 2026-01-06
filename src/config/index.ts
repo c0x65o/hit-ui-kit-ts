@@ -9,3 +9,12 @@ export {
   type TableFilterDefinition,
   type TableFilterConfig,
 } from './tableFilters';
+
+export {
+  ENTITY_REGISTRY,
+  getEntityDefinition,
+  hasEntityDefinition,
+  getLabelFromRowField,
+  getEntityDetailPath,
+  type EntityDefinition,
+} from './entityRegistry';

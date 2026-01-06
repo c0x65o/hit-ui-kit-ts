@@ -193,6 +193,32 @@ export interface GlobalFilterConfig {
   defaultOperator?: FilterOperator;
 }
 
+/**
+ * Reference configuration for columns that display IDs from related tables.
+ * Enables automatic ID-to-label resolution and link generation.
+ */
+export interface ColumnReferenceConfig {
+  /** 
+   * Entity type from the registry (e.g., 'crm.contact', 'crm.opportunity').
+   * Used to look up resolution and detail path configuration.
+   */
+  entityType: string;
+  /**
+   * Override the detail path from registry (uses :id placeholder).
+   * If not provided, uses the path from entity registry.
+   */
+  detailPath?: string;
+  /**
+   * Override the field in row data that contains pre-resolved label.
+   * If the row already has this field populated, no API call is needed.
+   */
+  labelFromRow?: string;
+  /**
+   * Whether to render as a clickable link. Default: true if detailPath exists.
+   */
+  linkable?: boolean;
+}
+
 export interface DataTableProps<T = Record<string, unknown>> {
   data: T[];
   columns: Array<{
@@ -210,6 +236,14 @@ export interface DataTableProps<T = Record<string, unknown>> {
     onSearch?: (query: string, limit: number) => Promise<Array<{ value: string; label: string; description?: string }>>;
     // For autocomplete: resolve value to label
     resolveValue?: (value: string) => Promise<{ value: string; label: string; description?: string } | null>;
+    /**
+     * Reference configuration for columns that display IDs from related tables.
+     * When configured, the DataTable will automatically:
+     * 1. Check if the row already has the label (from backend join)
+     * 2. Batch resolve missing IDs via API
+     * 3. Render a link to the detail page (if configured)
+     */
+    reference?: ColumnReferenceConfig;
   }>;
   onRowClick?: (row: T, index: number) => void;
   emptyMessage?: string;

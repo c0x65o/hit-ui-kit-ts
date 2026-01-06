@@ -50,3 +50,6 @@ export type { LatencyTrackedFetchOptions, LatencyTrackerConfig } from './useLate
 export { useTableFilters } from './useTableFilters';
 
 export { useDebounce, useDebouncedCallback } from './useDebounce';
+
+export { useEntityResolver } from './useEntityResolver';
+export type { ResolveRequest, ResolvedEntity } from './useEntityResolver';
