@@ -54,6 +54,9 @@ export { Help } from './Help';
 export { ViewSelector, FILTER_OPERATORS, type ViewColumnDefinition } from './ViewSelector';
 export { TableViewSharingPanel, type TableViewShareRecipient } from './TableViewSharingPanel';
 
+// Global Filters
+export { GlobalFilterBar, type GlobalFilterBarProps } from './GlobalFilterBar';
+
 // ACL
 export { AclPicker } from './AclPicker';
 

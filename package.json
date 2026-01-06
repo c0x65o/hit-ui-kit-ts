@@ -1,0 +1,61 @@
+{
+  "name": "@hit/ui-kit",
+  "version": "1.0.103",
+  "description": "HIT UI kit",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./components/*": {
+      "types": "./dist/components/*.d.ts",
+      "import": "./dist/components/*.js",
+      "require": "./dist/components/*.js",
+      "default": "./dist/components/*.js"
+    },
+    "./hooks/*": {
+      "types": "./dist/hooks/*.d.ts",
+      "import": "./dist/hooks/*.js",
+      "require": "./dist/hooks/*.js",
+      "default": "./dist/hooks/*.js"
+    },
+    "./theme": {
+      "types": "./dist/theme/index.d.ts",
+      "import": "./dist/theme/index.js",
+      "require": "./dist/theme/index.js",
+      "default": "./dist/theme/index.js"
+    },
+    "./tokens/*": {
+      "types": "./dist/tokens/*.d.ts",
+      "import": "./dist/tokens/*.js",
+      "require": "./dist/tokens/*.js",
+      "default": "./dist/tokens/*.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "@tanstack/react-table": "^8.0.0",
+    "react": "19.2.3"
+  },
+  "devDependencies": {
+    "@tanstack/react-table": "^8.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "lucide-react": "^0.460.0",
+    "typescript": "^5"
+  },
+  "license": "MIT"
+}

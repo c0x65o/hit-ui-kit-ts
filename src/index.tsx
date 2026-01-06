@@ -265,6 +265,9 @@ export {
   type ViewColumnDefinition,
   TableViewSharingPanel,
   type TableViewShareRecipient,
+  // Global Filters
+  GlobalFilterBar,
+  type GlobalFilterBarProps,
   // Layout Primitives
   Stack,
   Row,
@@ -280,6 +283,7 @@ export {
 } from './components';
 
 export type { AuthLayoutProps, AuthCardProps, FormInputProps } from './components';
+export type { GlobalFilterConfig } from './types';
 
 // Layout Primitive Types
 export type {

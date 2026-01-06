@@ -316,6 +316,108 @@ The `DataTable` is a drop-in replacement for the basic `Table` component with en
 
 All existing `Table` props work with `DataTable`, plus you get the new features!
 
+## Global Filters
+
+Enable a filter bar above the table that automatically shows filter controls for columns with filtering configured.
+
+### Basic Usage
+
+Add `showGlobalFilters` and configure columns with `filterType` and `filterOptions`:
+
+```tsx
+<DataTable
+  showGlobalFilters
+  columns={[
+    {
+      key: 'status',
+      label: 'Status',
+      filterType: 'select',
+      filterOptions: [
+        { value: 'active', label: 'Active' },
+        { value: 'inactive', label: 'Inactive' },
+      ],
+    },
+    {
+      key: 'type',
+      label: 'Type',
+      filterType: 'multiselect',
+      filterOptions: [
+        { value: 'project', label: 'Project' },
+        { value: 'task', label: 'Task' },
+      ],
+    },
+  ]}
+  data={data}
+/>
+```
+
+### Autocomplete Filters
+
+For entity lookups (users, companies, etc.), use `filterType: 'autocomplete'`:
+
+```tsx
+<DataTable
+  showGlobalFilters
+  columns={[
+    {
+      key: 'assignedUserId',
+      label: 'Assigned User',
+      filterType: 'autocomplete',
+      onSearch: async (query, limit) => {
+        const res = await fetch(`/api/users?search=${query}&limit=${limit}`);
+        const users = await res.json();
+        return users.map(u => ({ value: u.id, label: u.name }));
+      },
+      resolveValue: async (value) => {
+        const res = await fetch(`/api/users/${value}`);
+        const user = await res.json();
+        return { value: user.id, label: user.name };
+      },
+    },
+  ]}
+  data={data}
+/>
+```
+
+### Filter Types
+
+| Type | Description | Required Props |
+|------|-------------|----------------|
+| `string` | Text input with contains matching | - |
+| `number` | Number input with exact matching | - |
+| `boolean` | Yes/No dropdown | - |
+| `date` | Date picker | - |
+| `select` | Single-select dropdown | `filterOptions` |
+| `multiselect` | Multi-select with chips | `filterOptions` |
+| `autocomplete` | Search-as-you-type | `onSearch`, optionally `resolveValue` |
+
+### Advanced: Override Auto-generated Filters
+
+Use `globalFilters` prop to customize or disable specific filters:
+
+```tsx
+<DataTable
+  showGlobalFilters
+  columns={columns}
+  data={data}
+  globalFilters={[
+    { 
+      columnKey: 'status', 
+      label: 'Filter by Status',  // Override label
+      defaultValue: 'active',     // Set default value
+    },
+    { 
+      columnKey: 'createdAt', 
+      enabled: false,             // Exclude from auto-generated filters
+    },
+  ]}
+  onGlobalFiltersChange={(filters) => {
+    // filters = { status: 'active', assignedUserId: 'user123' }
+    console.log('Active filters:', filters);
+  }}
+/>
+```
+
 ## Styling
 
 The DataTable uses your theme tokens automatically. It respects:

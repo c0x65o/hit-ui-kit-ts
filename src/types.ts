@@ -167,6 +167,8 @@ export interface GlobalFilterConfig {
   required?: boolean;
   /** Default value */
   defaultValue?: string | string[];
+  /** Set to false to exclude this column from auto-generated filters */
+  enabled?: boolean;
 }
 
 export interface DataTableProps<T = Record<string, unknown>> {
@@ -195,6 +197,9 @@ export interface DataTableProps<T = Record<string, unknown>> {
   exportable?: boolean;
   showColumnVisibility?: boolean;
   // Global filters
+  /** Show global filter bar - auto-generates from columns with filterType + filterOptions/onSearch */
+  showGlobalFilters?: boolean;
+  /** Optional overrides for auto-generated filters, or explicit filter configs */
   globalFilters?: GlobalFilterConfig[];
   onGlobalFiltersChange?: (filters: Record<string, string | string[]>) => void;
   // Pagination

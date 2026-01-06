@@ -130,6 +130,7 @@ export function DataTable<TData extends Record<string, unknown>>({
   initialSorting,
   initialColumnVisibility,
   // Global filters
+  showGlobalFilters = false,
   globalFilters,
   onGlobalFiltersChange,
   // Server-side pagination
@@ -164,6 +165,64 @@ export function DataTable<TData extends Record<string, unknown>>({
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(initialColumnVisibility || {});
   const [globalFilter, setGlobalFilter] = useState('');
   
+  // Auto-generate filter configs from columns when showGlobalFilters is true
+  const effectiveGlobalFilters = useMemo(() => {
+    if (!showGlobalFilters && (!globalFilters || globalFilters.length === 0)) {
+      return [];
+    }
+    
+    // Build overrides map from explicit globalFilters
+    const overrides = new Map<string, typeof globalFilters extends (infer T)[] ? T : never>();
+    if (globalFilters) {
+      for (const f of globalFilters) {
+        overrides.set(f.columnKey, f);
+      }
+    }
+    
+    // If showGlobalFilters is true, auto-discover filterable columns
+    if (showGlobalFilters) {
+      const autoFilters: typeof globalFilters = [];
+      for (const col of columns) {
+        const override = overrides.get(col.key);
+        // Skip if explicitly disabled
+        if (override?.enabled === false) {
+          continue;
+        }
+        
+        const filterType = override?.filterType || col.filterType;
+        const filterOptions = override?.filterOptions || col.filterOptions;
+        const onSearch = override?.onSearch || col.onSearch;
+        
+        // Auto-include if:
+        // 1. Has select/multiselect filterType with filterOptions
+        // 2. Has autocomplete filterType with onSearch
+        // 3. Has explicit override
+        const isFilterable = 
+          (filterType === 'select' && filterOptions && filterOptions.length > 0) ||
+          (filterType === 'multiselect' && filterOptions && filterOptions.length > 0) ||
+          (filterType === 'autocomplete' && onSearch) ||
+          override;
+        
+        if (isFilterable) {
+          autoFilters.push({
+            columnKey: col.key,
+            label: override?.label,
+            filterType: filterType as any,
+            filterOptions: filterOptions,
+            onSearch: onSearch,
+            resolveValue: override?.resolveValue || col.resolveValue,
+            defaultValue: override?.defaultValue,
+            enabled: true,
+          });
+        }
+      }
+      return autoFilters;
+    }
+    
+    // Otherwise just use explicit globalFilters
+    return globalFilters || [];
+  }, [showGlobalFilters, globalFilters, columns]);
+
   // Global filter values (from GlobalFilterBar)
   const [globalFilterValues, setGlobalFilterValues] = useState<Record<string, string | string[]>>(() => {
     const defaults: Record<string, string | string[]> = {};
@@ -814,7 +873,7 @@ export function DataTable<TData extends Record<string, unknown>>({
 
   // Convert globalFilterValues to columnFilters format
   const globalFiltersAsColumnFilters = useMemo<ColumnFiltersState>(() => {
-    if (!globalFilters || Object.keys(globalFilterValues).length === 0) {
+    if (effectiveGlobalFilters.length === 0 || Object.keys(globalFilterValues).length === 0) {
       return [];
     }
     const filters: ColumnFiltersState = [];
@@ -822,7 +881,7 @@ export function DataTable<TData extends Record<string, unknown>>({
       if (value === '' || (Array.isArray(value) && value.length === 0)) {
         continue;
       }
-      const filter = globalFilters.find((f) => f.columnKey === columnKey);
+      const filter = effectiveGlobalFilters.find((f) => f.columnKey === columnKey);
       const col = columns.find((c) => c.key === columnKey);
       const filterType = filter?.filterType || col?.filterType || 'string';
       
@@ -847,7 +906,7 @@ export function DataTable<TData extends Record<string, unknown>>({
       }
     }
     return filters;
-  }, [globalFilterValues, globalFilters, columns]);
+  }, [globalFilterValues, effectiveGlobalFilters, columns]);
 
   // Merge global filters with column filters (global filters take precedence)
   const effectiveColumnFilters = useMemo<ColumnFiltersState>(() => {
@@ -1131,9 +1190,9 @@ export function DataTable<TData extends Record<string, unknown>>({
           </div>
         )}
         {/* Global Filter Bar */}
-        {globalFilters && globalFilters.length > 0 && (
+        {effectiveGlobalFilters.length > 0 && (
           <GlobalFilterBar
-            filters={globalFilters}
+            filters={effectiveGlobalFilters}
             values={globalFilterValues}
             onChange={handleGlobalFiltersChange}
             columns={columns}
