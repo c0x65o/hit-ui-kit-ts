@@ -150,6 +150,25 @@ export interface TableProps {
   loading?: boolean;
 }
 
+export interface GlobalFilterConfig {
+  /** Column key to filter on */
+  columnKey: string;
+  /** Override label (defaults to column label) */
+  label?: string;
+  /** Override filter type (defaults to column filterType) */
+  filterType?: 'string' | 'number' | 'boolean' | 'date' | 'select' | 'multiselect' | 'autocomplete';
+  /** Override filter options (for select/multiselect) */
+  filterOptions?: Array<{ value: string; label: string; sortOrder?: number }>;
+  /** For autocomplete: search function */
+  onSearch?: (query: string, limit: number) => Promise<Array<{ value: string; label: string; description?: string }>>;
+  /** For autocomplete: resolve value to label */
+  resolveValue?: (value: string) => Promise<{ value: string; label: string; description?: string } | null>;
+  /** Whether this filter is required */
+  required?: boolean;
+  /** Default value */
+  defaultValue?: string | string[];
+}
+
 export interface DataTableProps<T = Record<string, unknown>> {
   data: T[];
   columns: Array<{
@@ -160,9 +179,13 @@ export interface DataTableProps<T = Record<string, unknown>> {
     align?: 'left' | 'center' | 'right';
     sortable?: boolean;
     hideable?: boolean;
-    filterType?: 'string' | 'number' | 'boolean' | 'date' | 'select' | 'multiselect';
+    filterType?: 'string' | 'number' | 'boolean' | 'date' | 'select' | 'multiselect' | 'autocomplete';
     // Flexible shape, commonly: [{ value, label }]
-    filterOptions?: any[];
+    filterOptions?: Array<{ value: string; label: string; sortOrder?: number }>;
+    // For autocomplete: search function
+    onSearch?: (query: string, limit: number) => Promise<Array<{ value: string; label: string; description?: string }>>;
+    // For autocomplete: resolve value to label
+    resolveValue?: (value: string) => Promise<{ value: string; label: string; description?: string } | null>;
   }>;
   onRowClick?: (row: T, index: number) => void;
   emptyMessage?: string;
@@ -171,6 +194,9 @@ export interface DataTableProps<T = Record<string, unknown>> {
   searchable?: boolean;
   exportable?: boolean;
   showColumnVisibility?: boolean;
+  // Global filters
+  globalFilters?: GlobalFilterConfig[];
+  onGlobalFiltersChange?: (filters: Record<string, string | string[]>) => void;
   // Pagination
   pageSize?: number;
   pageSizeOptions?: number[];

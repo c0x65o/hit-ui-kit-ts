@@ -162,7 +162,8 @@ export function Select({
         position: 'fixed',
         top: dropdownPosition.top,
         left: dropdownPosition.left,
-        width: dropdownPosition.width,
+        minWidth: dropdownPosition.width,
+        maxWidth: 'max(400px, min(90vw, 600px))',
         zIndex: 99999,
         backgroundColor: colors.bg.surface,
         border: `1px solid ${colors.border.subtle}`,
@@ -206,8 +207,14 @@ export function Select({
               transition: 'background-color 100ms ease',
             })}
           >
-            <span style={{ flex: 1 }}>{opt.label}</span>
-            {isSelected && <Check size={14} style={{ color: colors.primary.default }} />}
+            <span style={{ 
+              flex: 1, 
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              minWidth: 0,
+            }}>{opt.label}</span>
+            {isSelected && <Check size={14} style={{ color: colors.primary.default, flexShrink: 0 }} />}
           </div>
         );
       })}
@@ -259,11 +266,19 @@ export function Select({
           transition: 'border-color 150ms ease',
         })}
       >
-        <span>{displayValue}</span>
+        <span style={{
+          flex: 1,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          minWidth: 0,
+        }}>{displayValue}</span>
         <ChevronDown size={16} style={{ 
           color: colors.text.muted,
           transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
           transition: 'transform 150ms ease',
+          flexShrink: 0,
+          marginLeft: spacing.xs,
         }} />
       </button>
       {dropdownContent}

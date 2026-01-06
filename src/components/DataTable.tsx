@@ -34,6 +34,7 @@ import { Button } from './Button';
 import { Input } from './Input';
 import { Dropdown } from './Dropdown';
 import { ViewSelector } from './ViewSelector';
+import { GlobalFilterBar } from './GlobalFilterBar';
 import type { DataTableProps } from '../types';
 import type { TableView } from '../hooks/useTableView';
 
@@ -128,6 +129,9 @@ export function DataTable<TData extends Record<string, unknown>>({
   onPageSizeChange,
   initialSorting,
   initialColumnVisibility,
+  // Global filters
+  globalFilters,
+  onGlobalFiltersChange,
   // Server-side pagination
   total,
   page: externalPage,
@@ -159,6 +163,19 @@ export function DataTable<TData extends Record<string, unknown>>({
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(initialColumnVisibility || {});
   const [globalFilter, setGlobalFilter] = useState('');
+  
+  // Global filter values (from GlobalFilterBar)
+  const [globalFilterValues, setGlobalFilterValues] = useState<Record<string, string | string[]>>(() => {
+    const defaults: Record<string, string | string[]> = {};
+    if (globalFilters) {
+      for (const filter of globalFilters) {
+        if (filter.defaultValue !== undefined) {
+          defaults[filter.columnKey] = filter.defaultValue;
+        }
+      }
+    }
+    return defaults;
+  });
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => {
     // Initialize collapsed groups if defaultCollapsed is true
     // We'll populate this after we have data
@@ -695,22 +712,78 @@ export function DataTable<TData extends Record<string, unknown>>({
     }
   }, [groupBy?.defaultCollapsed, groupBy?.field, data, isServerBucketGroupActive, bucketGroupOrder, bucketGroupBySeg]);
 
+  // Helper function to get filter function based on filter type
+  // TanStack Table v8 filterFn signature: (row, columnId, filterValue) => boolean
+  const getFilterFn = (filterType?: string) => {
+    switch (filterType) {
+      case 'multiselect':
+        return (row: any, columnId: string, filterValue: any) => {
+          if (!filterValue || (Array.isArray(filterValue) && filterValue.length === 0)) return true;
+          const rowValue = String(row.getValue(columnId) ?? '');
+          const filterValues = Array.isArray(filterValue) ? filterValue : [filterValue];
+          return filterValues.some((fv) => String(fv) === rowValue || String(fv).toLowerCase() === rowValue.toLowerCase());
+        };
+      case 'number':
+        return (row: any, columnId: string, filterValue: any) => {
+          if (!filterValue) return true;
+          const rowValue = Number(row.getValue(columnId));
+          const filterNum = Number(Array.isArray(filterValue) ? filterValue[0] : filterValue);
+          if (!Number.isFinite(rowValue) || !Number.isFinite(filterNum)) return false;
+          return rowValue === filterNum;
+        };
+      case 'boolean':
+        return (row: any, columnId: string, filterValue: any) => {
+          if (!filterValue) return true;
+          const rowValue = Boolean(row.getValue(columnId));
+          const filterBool = Array.isArray(filterValue) ? filterValue[0] === 'true' : filterValue === 'true';
+          return rowValue === filterBool;
+        };
+      case 'date':
+        return (row: any, columnId: string, filterValue: any) => {
+          if (!filterValue) return true;
+          const rowValue = row.getValue(columnId);
+          const filterDate = Array.isArray(filterValue) ? filterValue[0] : filterValue;
+          return String(rowValue) === String(filterDate);
+        };
+      case 'select':
+        // Exact match for select (case-insensitive)
+        return (row: any, columnId: string, filterValue: any) => {
+          if (!filterValue) return true;
+          const rowValue = String(row.getValue(columnId) ?? '').toLowerCase();
+          const filterStr = String(Array.isArray(filterValue) ? filterValue[0] : filterValue).toLowerCase();
+          return rowValue === filterStr;
+        };
+      default:
+        // String - includes match (case-insensitive)
+        return (row: any, columnId: string, filterValue: any) => {
+          if (!filterValue) return true;
+          const rowValue = String(row.getValue(columnId) ?? '').toLowerCase();
+          const filterStr = String(Array.isArray(filterValue) ? filterValue[0] : filterValue).toLowerCase();
+          return rowValue.includes(filterStr);
+        };
+    }
+  };
+
   // Convert columns to TanStack Table format
   const tableColumns = useMemo<ColumnDef<TData>[]>(() => {
-    const base = columns.map((col) => ({
-      id: col.key,
-      accessorKey: col.key,
-      header: col.label,
-      cell: ({ row, getValue }: { row: any; getValue: () => any }) => {
-        const value = getValue();
-        if (col.render) {
-          return col.render(value, row.original, row.index);
-        }
-        return value as React.ReactNode;
-      },
-      enableSorting: col.sortable !== false,
-      enableHiding: col.hideable !== false,
-    }));
+    const base = columns.map((col) => {
+      const filterFn = getFilterFn(col.filterType);
+      return {
+        id: col.key,
+        accessorKey: col.key,
+        header: col.label,
+        cell: ({ row, getValue }: { row: any; getValue: () => any }) => {
+          const value = getValue();
+          if (col.render) {
+            return col.render(value, row.original, row.index);
+          }
+          return value as React.ReactNode;
+        },
+        enableSorting: col.sortable !== false,
+        enableHiding: col.hideable !== false,
+        filterFn,
+      };
+    });
 
     const dyn = Object.values(bucketColumns || {}).map((c) => ({
       id: c.columnKey,
@@ -739,12 +812,64 @@ export function DataTable<TData extends Record<string, unknown>>({
     return [...base, ...dyn, ...metricDyn] as any;
   }, [columns, bucketColumns, metricColumns]);
 
+  // Convert globalFilterValues to columnFilters format
+  const globalFiltersAsColumnFilters = useMemo<ColumnFiltersState>(() => {
+    if (!globalFilters || Object.keys(globalFilterValues).length === 0) {
+      return [];
+    }
+    const filters: ColumnFiltersState = [];
+    for (const [columnKey, value] of Object.entries(globalFilterValues)) {
+      if (value === '' || (Array.isArray(value) && value.length === 0)) {
+        continue;
+      }
+      const filter = globalFilters.find((f) => f.columnKey === columnKey);
+      const col = columns.find((c) => c.key === columnKey);
+      const filterType = filter?.filterType || col?.filterType || 'string';
+      
+      if (filterType === 'multiselect' && Array.isArray(value)) {
+        // For multiselect, use arrayContains filter
+        filters.push({
+          id: columnKey,
+          value: value,
+        });
+      } else if (filterType === 'string' && typeof value === 'string') {
+        // For string, use includesString filter
+        filters.push({
+          id: columnKey,
+          value: value,
+        });
+      } else {
+        // For other types, use exact match
+        filters.push({
+          id: columnKey,
+          value: Array.isArray(value) ? value : [value],
+        });
+      }
+    }
+    return filters;
+  }, [globalFilterValues, globalFilters, columns]);
+
+  // Merge global filters with column filters (global filters take precedence)
+  const effectiveColumnFilters = useMemo<ColumnFiltersState>(() => {
+    const globalFilterKeys = new Set(globalFiltersAsColumnFilters.map((f) => f.id));
+    const otherFilters = columnFilters.filter((f) => !globalFilterKeys.has(f.id));
+    return [...globalFiltersAsColumnFilters, ...otherFilters];
+  }, [globalFiltersAsColumnFilters, columnFilters]);
+
+  // Handle global filter changes
+  const handleGlobalFiltersChange = (values: Record<string, string | string[]>) => {
+    setGlobalFilterValues(values);
+    if (onGlobalFiltersChange) {
+      onGlobalFiltersChange(values);
+    }
+  };
+
   const table = useReactTable({
     data: augmentedData,
     columns: tableColumns,
     state: {
       sorting,
-      columnFilters,
+      columnFilters: effectiveColumnFilters,
       columnVisibility,
       globalFilter,
       pagination,
@@ -1004,6 +1129,15 @@ export function DataTable<TData extends Record<string, unknown>>({
             <strong style={{ marginRight: 8 }}>Dynamic columns error:</strong>
             {dynamicColumnsError}
           </div>
+        )}
+        {/* Global Filter Bar */}
+        {globalFilters && globalFilters.length > 0 && (
+          <GlobalFilterBar
+            filters={globalFilters}
+            values={globalFilterValues}
+            onChange={handleGlobalFiltersChange}
+            columns={columns}
+          />
         )}
         {/* Toolbar */}
       {(searchable || exportable || showColumnVisibility || showRefresh || viewsEnabled) && (
