@@ -157,7 +157,7 @@ export interface GlobalFilterConfig {
   /** Override label (defaults to column label) */
   label?: string;
   /** Override filter type (defaults to column filterType) */
-  filterType?: 'string' | 'number' | 'boolean' | 'date' | 'select' | 'multiselect' | 'autocomplete';
+  filterType?: 'string' | 'number' | 'boolean' | 'date' | 'daterange' | 'select' | 'multiselect' | 'autocomplete';
   /** Override filter options (for select/multiselect) */
   filterOptions?: Array<{ value: string; label: string; sortOrder?: number }>;
   /** For autocomplete: search function */
@@ -182,7 +182,7 @@ export interface DataTableProps<T = Record<string, unknown>> {
     align?: 'left' | 'center' | 'right';
     sortable?: boolean;
     hideable?: boolean;
-    filterType?: 'string' | 'number' | 'boolean' | 'date' | 'select' | 'multiselect' | 'autocomplete';
+    filterType?: 'string' | 'number' | 'boolean' | 'date' | 'daterange' | 'select' | 'multiselect' | 'autocomplete';
     // Flexible shape, commonly: [{ value, label }]
     filterOptions?: Array<{ value: string; label: string; sortOrder?: number }>;
     // For autocomplete: search function

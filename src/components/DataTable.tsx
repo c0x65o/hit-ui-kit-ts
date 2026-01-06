@@ -34,7 +34,7 @@ import { Button } from './Button';
 import { Input } from './Input';
 import { Dropdown } from './Dropdown';
 import { ViewSelector } from './ViewSelector';
-import { GlobalFilterBar } from './GlobalFilterBar';
+import { FilterDropdown } from './FilterDropdown';
 import type { DataTableProps, GlobalFilterConfig } from '../types';
 import type { TableView } from '../hooks/useTableView';
 
@@ -196,11 +196,17 @@ export function DataTable<TData extends Record<string, unknown>>({
         // Auto-include if:
         // 1. Has select/multiselect filterType with filterOptions
         // 2. Has autocomplete filterType with onSearch
-        // 3. Has explicit override
+        // 3. Has string/date/daterange/number/boolean filterType explicitly set
+        // 4. Has explicit override
         const isFilterable = 
           (filterType === 'select' && filterOptions && filterOptions.length > 0) ||
           (filterType === 'multiselect' && filterOptions && filterOptions.length > 0) ||
           (filterType === 'autocomplete' && onSearch) ||
+          filterType === 'string' ||
+          filterType === 'date' ||
+          filterType === 'daterange' ||
+          filterType === 'number' ||
+          filterType === 'boolean' ||
           override;
         
         if (isFilterable) {
@@ -804,6 +810,42 @@ export function DataTable<TData extends Record<string, unknown>>({
           const filterDate = Array.isArray(filterValue) ? filterValue[0] : filterValue;
           return String(rowValue) === String(filterDate);
         };
+      case 'daterange':
+        // Date range filter - filterValue is "fromDate|toDate"
+        return (row: any, columnId: string, filterValue: any) => {
+          if (!filterValue) return true;
+          const rangeStr = String(Array.isArray(filterValue) ? filterValue[0] : filterValue);
+          const [fromStr, toStr] = rangeStr.split('|');
+          if (!fromStr && !toStr) return true;
+          
+          const rowValue = row.getValue(columnId);
+          if (!rowValue) return false;
+          
+          // Parse row date
+          const rowDate = new Date(String(rowValue));
+          if (isNaN(rowDate.getTime())) return false;
+          const rowDateOnly = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate());
+          
+          // Check from date
+          if (fromStr) {
+            const fromDate = new Date(fromStr);
+            if (!isNaN(fromDate.getTime())) {
+              const fromDateOnly = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
+              if (rowDateOnly < fromDateOnly) return false;
+            }
+          }
+          
+          // Check to date
+          if (toStr) {
+            const toDate = new Date(toStr);
+            if (!isNaN(toDate.getTime())) {
+              const toDateOnly = new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate());
+              if (rowDateOnly > toDateOnly) return false;
+            }
+          }
+          
+          return true;
+        };
       case 'select':
         // Exact match for select (case-insensitive)
         return (row: any, columnId: string, filterValue: any) => {
@@ -1189,17 +1231,8 @@ export function DataTable<TData extends Record<string, unknown>>({
             {dynamicColumnsError}
           </div>
         )}
-        {/* Global Filter Bar */}
-        {effectiveGlobalFilters.length > 0 && (
-          <GlobalFilterBar
-            filters={effectiveGlobalFilters}
-            values={globalFilterValues}
-            onChange={handleGlobalFiltersChange}
-            columns={columns}
-          />
-        )}
         {/* Toolbar */}
-      {(searchable || exportable || showColumnVisibility || showRefresh || viewsEnabled) && (
+      {(searchable || exportable || showColumnVisibility || showRefresh || viewsEnabled || effectiveGlobalFilters.length > 0) && (
         <div style={styles({
           display: 'flex',
           gap: spacing.md,
@@ -1336,6 +1369,16 @@ export function DataTable<TData extends Record<string, unknown>>({
                 />
                 Refresh
               </Button>
+            )}
+
+            {effectiveGlobalFilters.length > 0 && (
+              <FilterDropdown
+                tableId={tableId}
+                filters={effectiveGlobalFilters}
+                values={globalFilterValues}
+                onChange={handleGlobalFiltersChange}
+                columns={columns}
+              />
             )}
 
             {showColumnVisibility && (

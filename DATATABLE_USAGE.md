@@ -318,7 +318,15 @@ All existing `Table` props work with `DataTable`, plus you get the new features!
 
 ## Global Filters
 
-Enable a filter bar above the table that automatically shows filter controls for columns with filtering configured.
+Enable a "Filters" button in the toolbar that opens a dropdown with filter controls. Filters are discovered automatically from column configurations and persisted to localStorage per table.
+
+### Features
+
+- **Button with badge**: Shows filter count when filters are active
+- **Dropdown popover**: Click button to open filter controls
+- **Add/remove filters**: Toggle which filters are visible
+- **LocalStorage persistence**: Filter state is saved per `tableId`
+- **Auto-discovery**: Filters appear for columns with `filterType` configured
 
 ### Basic Usage
 
@@ -326,6 +334,7 @@ Add `showGlobalFilters` and configure columns with `filterType` and `filterOptio
 
 ```tsx
 <DataTable
+  tableId="my-table"  // Required for localStorage persistence
   showGlobalFilters
   columns={[
     {
@@ -383,13 +392,33 @@ For entity lookups (users, companies, etc.), use `filterType: 'autocomplete'`:
 
 | Type | Description | Required Props |
 |------|-------------|----------------|
-| `string` | Text input with contains matching | - |
+| `string` | Text input with contains matching and search icon | - |
 | `number` | Number input with exact matching | - |
 | `boolean` | Yes/No dropdown | - |
-| `date` | Date picker | - |
+| `date` | Single date picker | - |
+| `daterange` | From/To date pickers for range filtering | - |
 | `select` | Single-select dropdown | `filterOptions` |
 | `multiselect` | Multi-select with chips | `filterOptions` |
 | `autocomplete` | Search-as-you-type | `onSearch`, optionally `resolveValue` |
+
+### Date Range Example
+
+```tsx
+<DataTable
+  showGlobalFilters
+  columns={[
+    {
+      key: 'createdAt',
+      label: 'Created',
+      filterType: 'daterange',
+      render: (value) => formatDate(value),
+    },
+  ]}
+  data={data}
+/>
+```
+
+The date range filter stores values as `"fromDate|toDate"` format (e.g., `"2024-01-01|2024-12-31"`).
 
 ### Advanced: Override Auto-generated Filters
 

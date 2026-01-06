@@ -56,6 +56,7 @@ export { TableViewSharingPanel, type TableViewShareRecipient } from './TableView
 
 // Global Filters
 export { GlobalFilterBar, type GlobalFilterBarProps } from './GlobalFilterBar';
+export { FilterDropdown, type FilterDropdownProps } from './FilterDropdown';
 
 // ACL
 export { AclPicker } from './AclPicker';
