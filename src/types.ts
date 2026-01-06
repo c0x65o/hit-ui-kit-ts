@@ -116,6 +116,7 @@ export interface AutocompleteProps {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  required?: boolean;
 
   minQueryLength?: number; // default 2
   debounceMs?: number; // default 300

@@ -18,6 +18,7 @@ export interface AutocompleteProps {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  required?: boolean;
 
   minQueryLength?: number; // default 2
   debounceMs?: number; // default 300
@@ -37,6 +38,7 @@ export function Autocomplete({
   value,
   onChange,
   disabled = false,
+  required = false,
   minQueryLength = 2,
   debounceMs = 300,
   limit = 10,
@@ -251,7 +253,9 @@ export function Autocomplete({
           onKeyDown={onKeyDown}
           placeholder={placeholder}
           disabled={disabled}
+          required={required}
           role="combobox"
+          aria-required={required}
           aria-autocomplete="list"
           aria-expanded={open}
           aria-controls={listboxId}
