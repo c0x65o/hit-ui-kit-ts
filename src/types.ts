@@ -262,6 +262,11 @@ export interface DataTableProps<T = Record<string, unknown>> {
   searchDebounceMs?: number;
   /** Callback for server-side search. Receives debounced search term. Only used when manualPagination is true. */
   onSearchChange?: (searchTerm: string) => void;
+  /**
+   * Callback when sorting changes (e.g. user clicks a header).
+   * Useful for server-side sorting when manualPagination is true.
+   */
+  onSortingChange?: (sorting: Array<{ id: string; desc: boolean }>) => void;
   // Global filters
   /** Show global filter bar - auto-generates from columns with filterType + filterOptions/onSearch */
   showGlobalFilters?: boolean;

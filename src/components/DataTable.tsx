@@ -135,6 +135,7 @@ export function DataTable<TData extends Record<string, unknown>>({
   onPageSizeChange,
   initialSorting,
   initialColumnVisibility,
+  onSortingChange: onSortingChangeProp,
   // Global filters
   showGlobalFilters = false,
   globalFilters,
@@ -193,8 +194,13 @@ export function DataTable<TData extends Record<string, unknown>>({
   // Get filters from centralized registry (if tableId is provided)
   const { filters: registryFilters, hasFilters: hasRegistryFilters } = useTableFilters(tableId);
   
-  // Entity resolver for reference columns
-  const entityResolver = useEntityResolver();
+  // Entity resolver for reference columns - destructure to get stable function references
+  const { 
+    resolveEntities: resolverResolveEntities, 
+    getLabel: resolverGetLabel, 
+    isCached: resolverIsCached, 
+    populateFromRowData: resolverPopulateFromRowData 
+  } = useEntityResolver();
   
   // Track columns with reference config
   const referenceColumns = useMemo(() => {
@@ -235,13 +241,13 @@ export function DataTable<TData extends Record<string, unknown>>({
           if (!newLabels[col.key]) newLabels[col.key] = {};
           newLabels[col.key][idStr] = String((row as any)[labelField]);
           // Also populate the resolver cache
-          entityResolver.populateFromRowData(ref.entityType, idFieldName, labelField, [row as Record<string, unknown>]);
-        } else if (!entityResolver.isCached(ref.entityType, idStr)) {
+          resolverPopulateFromRowData(ref.entityType, idFieldName, labelField, [row as Record<string, unknown>]);
+        } else if (!resolverIsCached(ref.entityType, idStr)) {
           // Need to resolve this ID
           idsNeedingResolution.push(idStr);
         } else {
           // Already cached
-          const cachedLabel = entityResolver.getLabel(ref.entityType, idStr);
+          const cachedLabel = resolverGetLabel(ref.entityType, idStr);
           if (cachedLabel) {
             if (!newLabels[col.key]) newLabels[col.key] = {};
             newLabels[col.key][idStr] = cachedLabel;
@@ -261,7 +267,7 @@ export function DataTable<TData extends Record<string, unknown>>({
     
     // Resolve missing IDs via API
     if (toResolve.length > 0) {
-      entityResolver.resolveEntities(toResolve).then(() => {
+      resolverResolveEntities(toResolve).then(() => {
         // After resolution, update local state with newly resolved labels
         const updatedLabels: Record<string, Record<string, string>> = {};
         for (const col of referenceColumns) {
@@ -271,7 +277,7 @@ export function DataTable<TData extends Record<string, unknown>>({
             const id = (row as any)[idFieldName];
             if (!id) continue;
             const idStr = String(id);
-            const label = entityResolver.getLabel(ref.entityType, idStr);
+            const label = resolverGetLabel(ref.entityType, idStr);
             if (label) {
               if (!updatedLabels[col.key]) updatedLabels[col.key] = {};
               updatedLabels[col.key][idStr] = label;
@@ -283,7 +289,7 @@ export function DataTable<TData extends Record<string, unknown>>({
         }
       });
     }
-  }, [data, referenceColumns, entityResolver]);
+  }, [data, referenceColumns, resolverResolveEntities, resolverGetLabel, resolverIsCached, resolverPopulateFromRowData]);
   
   // Auto-enable filters if registry has filters for this tableId (unless explicitly disabled)
   const filtersEnabled = showGlobalFilters || hasRegistryFilters;
@@ -1060,7 +1066,7 @@ export function DataTable<TData extends Record<string, unknown>>({
             const idStr = String(idValue);
             
             // Get the label from resolved cache
-            const label = resolvedLabels[col.key]?.[idStr] || entityResolver.getLabel(ref.entityType, idStr);
+            const label = resolvedLabels[col.key]?.[idStr] || resolverGetLabel(ref.entityType, idStr);
             
             // If no label resolved yet, show ID as fallback
             const displayText = label || idStr;
@@ -1125,7 +1131,7 @@ export function DataTable<TData extends Record<string, unknown>>({
     })) as any[];
 
     return [...base, ...dyn, ...metricDyn] as any;
-  }, [columns, bucketColumns, metricColumns, resolvedLabels, entityResolver, colors.text.muted]);
+  }, [columns, bucketColumns, metricColumns, resolvedLabels, resolverGetLabel, colors.text.muted]);
 
   // Convert globalFilterValues to columnFilters format
   const globalFiltersAsColumnFilters = useMemo<ColumnFiltersState>(() => {
@@ -1189,7 +1195,16 @@ export function DataTable<TData extends Record<string, unknown>>({
       globalFilter,
       pagination,
     },
-    onSortingChange: setSorting,
+    onSortingChange: (updater) => {
+      setSorting((prev) => {
+        const next = typeof updater === 'function' ? updater(prev) : updater;
+        // Notify consumer for server-side sorting (if desired)
+        if (onSortingChangeProp) {
+          onSortingChangeProp(next as Array<{ id: string; desc: boolean }>);
+        }
+        return next;
+      });
+    },
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onGlobalFilterChange: setGlobalFilter,

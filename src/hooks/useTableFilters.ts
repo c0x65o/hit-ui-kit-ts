@@ -62,6 +62,7 @@ export function useTableFilters(tableId: string | undefined) {
 
     const fetchOptions = async (f: TableFilterDefinition, endpoint: string, isAutocomplete: boolean) => {
       try {
+        const isAuthDirectoryUsers = isAutocomplete && endpoint.includes('/directory/users');
         // For autocomplete, fetch with large page size to check total count
         const url = isAutocomplete 
           ? `${endpoint}?pageSize=${DROPDOWN_THRESHOLD + 1}` 
@@ -81,7 +82,9 @@ export function useTableFilters(tableId: string | undefined) {
         if (!Array.isArray(items)) items = [];
 
         // Check total from pagination if available
-        const total = json.pagination?.total ?? json.total ?? items.length;
+        // Note: auth directory endpoints often return a plain array with no total/pagination.
+        // In that case we MUST keep autocomplete (no safe way to infer "small dataset").
+        const total = isAuthDirectoryUsers ? Number.POSITIVE_INFINITY : (json.pagination?.total ?? json.total ?? items.length);
 
         const valueField = f.valueField || 'id';
         const labelField = f.labelField || 'name';

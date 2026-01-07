@@ -53,3 +53,7 @@ export { useDebounce, useDebouncedCallback } from './useDebounce';
 
 export { useEntityResolver } from './useEntityResolver';
 export type { ResolveRequest, ResolvedEntity } from './useEntityResolver';
+
+// Server-driven DataTable helpers
+export { useServerDataTableState } from './useServerDataTableState';
+export type { ServerDataTableQuery, ServerDataTableSort } from './useServerDataTableState';

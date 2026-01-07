@@ -191,6 +191,8 @@ export { defaultKit } from './kit';
 export { useAlertDialog } from './hooks/useAlertDialog';
 export type { AlertDialogOptions, AlertDialogState } from './hooks/useAlertDialog';
 export { useTableView, type TableView, type TableViewFilter, type TableViewShare } from './hooks/useTableView';
+export { useServerDataTableState } from './hooks/useServerDataTableState';
+export type { ServerDataTableQuery, ServerDataTableSort } from './hooks/useServerDataTableState';
 export { useFormSubmit, parseError, parseResponseError } from './hooks/useFormSubmit';
 export type {
   ParsedFormError,
@@ -287,6 +289,10 @@ export {
 
 export type { AuthLayoutProps, AuthCardProps, FormInputProps, UserAvatarProps } from './components';
 export type { GlobalFilterConfig, ColumnReferenceConfig } from './types';
+
+// Table query helpers (server-driven tables)
+export type { GlobalFilterValues, ServerTableFilter } from './utils/tableQuery';
+export { globalFilterValuesToServerFilters, mergeViewAndQuickServerFilters } from './utils/tableQuery';
 
 // Entity Registry (for reference column configuration)
 export {

@@ -17,7 +17,7 @@
  * const label = getLabel('crm.contact', 'uuid1'); // "John Doe"
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { getEntityDefinition } from '../config/entityRegistry';
 
 export interface ResolveRequest {
