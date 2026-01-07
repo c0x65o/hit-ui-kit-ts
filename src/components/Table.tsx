@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { useThemeTokens } from '../theme/index.js';
 import { styles } from './utils';
 import type { TableProps } from '../types';
+import { formatDateTimeCellIfApplicable } from '../utils/datetime';
 
 export function Table({ columns, data, onRowClick, emptyMessage, loading }: TableProps) {
   const { colors, textStyles: ts, spacing } = useThemeTokens();
@@ -90,7 +91,7 @@ export function Table({ columns, data, onRowClick, emptyMessage, loading }: Tabl
                 >
                   {col.render
                     ? col.render(row[col.key], row, rowIndex)
-                    : (row[col.key] as React.ReactNode)}
+                    : (formatDateTimeCellIfApplicable(col.key, row[col.key]) ?? (row[col.key] as React.ReactNode))}
                 </td>
               ))}
             </tr>

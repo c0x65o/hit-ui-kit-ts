@@ -47,6 +47,7 @@ import { useEntityResolver } from '../hooks/useEntityResolver';
 import { getEntityDefinition, getLabelFromRowField, getEntityDetailPath } from '../config/entityRegistry';
 import type { DataTableProps, GlobalFilterConfig, ColumnReferenceConfig } from '../types';
 import type { TableView } from '../hooks/useTableView';
+import { formatDateTimeCellIfApplicable } from '../utils/datetime';
 
 type BucketColumnDef = {
   columnKey: string;
@@ -1148,7 +1149,12 @@ export function DataTable<TData extends Record<string, unknown>>({
             
             return displayText as React.ReactNode;
           }
-          
+
+          // Auto-format ISO datetime strings for datetime-like columns
+          // (prevents raw "....Z" UTC strings from leaking into the UI).
+          const formatted = formatDateTimeCellIfApplicable(col.key, value);
+          if (formatted) return formatted as React.ReactNode;
+
           return value as React.ReactNode;
         },
         enableSorting: col.sortable !== false,
