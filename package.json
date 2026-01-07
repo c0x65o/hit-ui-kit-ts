@@ -1,40 +1,30 @@
 {
   "name": "@hit/ui-kit",
-  "version": "1.0.126",
+  "version": "1.0.127",
   "description": "HIT UI kit",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "src/index.tsx",
+  "types": "src/index.tsx",
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.js",
-      "default": "./dist/index.js"
+      "types": "./src/index.tsx",
+      "default": "./src/index.tsx"
     },
     "./components/*": {
-      "types": "./dist/components/*.d.ts",
-      "import": "./dist/components/*.js",
-      "require": "./dist/components/*.js",
-      "default": "./dist/components/*.js"
+      "types": "./src/components/*",
+      "default": "./src/components/*"
     },
     "./hooks/*": {
-      "types": "./dist/hooks/*.d.ts",
-      "import": "./dist/hooks/*.js",
-      "require": "./dist/hooks/*.js",
-      "default": "./dist/hooks/*.js"
+      "types": "./src/hooks/*",
+      "default": "./src/hooks/*"
     },
     "./theme": {
-      "types": "./dist/theme/index.d.ts",
-      "import": "./dist/theme/index.js",
-      "require": "./dist/theme/index.js",
-      "default": "./dist/theme/index.js"
+      "types": "./src/theme/index.ts",
+      "default": "./src/theme/index.ts"
     },
     "./tokens/*": {
-      "types": "./dist/tokens/*.d.ts",
-      "import": "./dist/tokens/*.js",
-      "require": "./dist/tokens/*.js",
-      "default": "./dist/tokens/*.js"
+      "types": "./src/tokens/*",
+      "default": "./src/tokens/*"
     }
   },
   "files": [
