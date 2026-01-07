@@ -11,6 +11,13 @@ import type { GlobalFilterConfig, FilterOperator } from '../types';
 export interface FilterDropdownProps {
   /** Table ID for localStorage persistence */
   tableId?: string;
+  /**
+   * Optional explicit persistence key for localStorage.
+   * When provided, this is used instead of `hit:table-filters:${tableId}`.
+   * Useful for persisting quick filters per-view (tableId + viewId) to avoid "fighting"
+   * between view filters and quick filters when switching views.
+   */
+  persistenceKey?: string;
   /** Filter configurations */
   filters: GlobalFilterConfig[];
   /** Current filter values */
@@ -38,7 +45,7 @@ export interface FilterDropdownProps {
  * - Persists filter state to localStorage per tableId
  * - Supports all filter types: string, number, date, daterange, boolean, select, multiselect, autocomplete
  */
-export function FilterDropdown({ tableId, filters, values, onChange, columns }: FilterDropdownProps) {
+export function FilterDropdown({ tableId, persistenceKey, filters, values, onChange, columns }: FilterDropdownProps) {
   const { colors, radius, spacing, textStyles: ts, shadows } = useThemeTokens();
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<{ top: number; left?: number; right?: number } | null>(null);
@@ -49,31 +56,63 @@ export function FilterDropdown({ tableId, filters, values, onChange, columns }: 
   const [enabledFilters, setEnabledFilters] = useState<Set<string>>(new Set());
   const [localValues, setLocalValues] = useState<Record<string, string | string[]>>(values);
 
-  // Load from localStorage on mount
+  const legacyStorageKey = tableId ? `hit:table-filters:${tableId}` : null;
+  const storageKey = persistenceKey || legacyStorageKey;
+
+  // Load from localStorage on mount / when key changes
   useEffect(() => {
-    if (!tableId) return;
+    if (!storageKey) return;
     try {
-      const stored = localStorage.getItem(`hit:table-filters:${tableId}`);
-      if (stored) {
-        const parsed = JSON.parse(stored);
+      const tryRead = (key: string) => {
+        const raw = localStorage.getItem(key);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : null;
+      };
+
+      // Prefer the explicit key; if missing and it differs from legacy, fall back once to legacy for migration.
+      let parsed = tryRead(storageKey);
+      if (!parsed && legacyStorageKey && legacyStorageKey !== storageKey) {
+        parsed = tryRead(legacyStorageKey);
+        // Migrate forward so future loads are per-view
+        if (parsed) {
+          try {
+            localStorage.setItem(storageKey, JSON.stringify(parsed));
+          } catch {
+            // ignore
+          }
+        }
+      }
+
+      if (parsed) {
         if (parsed.enabledFilters && Array.isArray(parsed.enabledFilters)) {
           setEnabledFilters(new Set(parsed.enabledFilters));
+        } else {
+          setEnabledFilters(new Set());
         }
         if (parsed.values && typeof parsed.values === 'object') {
           setLocalValues(parsed.values);
           onChange(parsed.values);
+        } else {
+          setLocalValues({});
+          onChange({});
         }
+      } else {
+        // No saved state for this key -> reset to empty (per-view behavior).
+        setEnabledFilters(new Set());
+        setLocalValues({});
+        onChange({});
       }
     } catch {
       // Ignore localStorage errors
     }
-  }, [tableId]);
+  }, [storageKey]);
 
   // Save to localStorage when values or enabled filters change
   useEffect(() => {
-    if (!tableId) return;
+    if (!storageKey) return;
     try {
-      localStorage.setItem(`hit:table-filters:${tableId}`, JSON.stringify({
+      localStorage.setItem(storageKey, JSON.stringify({
         enabledFilters: Array.from(enabledFilters),
         values: localValues,
         updatedAt: new Date().toISOString(),
@@ -81,7 +120,7 @@ export function FilterDropdown({ tableId, filters, values, onChange, columns }: 
     } catch {
       // Ignore localStorage errors
     }
-  }, [tableId, enabledFilters, localValues]);
+  }, [storageKey, enabledFilters, localValues]);
 
   // Sync external values
   useEffect(() => {

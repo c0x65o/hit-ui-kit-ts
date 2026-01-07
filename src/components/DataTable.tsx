@@ -164,6 +164,10 @@ export function DataTable<TData extends Record<string, unknown>>({
   // Auto-enable views if tableId is provided (unless explicitly disabled)
   const viewsEnabled = enableViews !== undefined ? enableViews : !!tableId;
   const { colors, textStyles: ts, spacing, radius } = useThemeTokens();
+
+  // Track current selected view id for per-view quick filter persistence.
+  // (null = "All Items")
+  const [currentViewId, setCurrentViewId] = useState<string | null>(null);
   
   const [sorting, setSorting] = useState<SortingState>(
     initialSorting?.map((s) => ({ id: s.id, desc: s.desc ?? false })) || []
@@ -399,6 +403,7 @@ export function DataTable<TData extends Record<string, unknown>>({
   const currentViewIdRef = useRef<string | null>(null); // null = "All Items"
   const hasInitializedSelectionRef = useRef(false);
   const getModifiersKey = (tid: string, vid: string | null) => `hit:table-modifiers:${tid}:${vid ?? '__all__'}`;
+  const getQuickFiltersKey = (tid: string, vid: string | null) => `hit:table-filters:${tid}:${vid ?? '__all__'}`;
   const readModifiers = (tid: string, vid: string | null): { sorting?: SortingState; columnVisibility?: VisibilityState } | null => {
     if (typeof window === 'undefined') return null;
     try {
@@ -436,6 +441,7 @@ export function DataTable<TData extends Record<string, unknown>>({
     // Only run once per tableId.
     if (hasInitializedSelectionRef.current) return;
     currentViewIdRef.current = null;
+    setCurrentViewId(null);
     const mods = readModifiers(tableId, null);
     if (mods?.sorting) setSorting(mods.sorting);
     if (mods?.columnVisibility) setColumnVisibility(mods.columnVisibility);
@@ -1495,7 +1501,13 @@ export function DataTable<TData extends Record<string, unknown>>({
                 ...columns.map((col) => ({ 
                   key: col.key, 
                   label: col.label, 
-                  type: col.filterType || 'string',
+                  // Best-effort inference so view filters "just work" even without registry entries.
+                  // Particularly helpful for date-ish fields like createdAt/updatedAt/*Timestamp.
+                  type:
+                    col.filterType ||
+                    (/(?:At|_at|On|_on|Date|_date|Timestamp|_timestamp)$/i.test(String(col.key))
+                      ? ('date' as const)
+                      : ('string' as const)),
                   options: col.filterOptions,
                   hideable: col.hideable !== false,
                 })),
@@ -1519,6 +1531,7 @@ export function DataTable<TData extends Record<string, unknown>>({
               onReady={setViewSystemReady}
               onViewChange={(view: TableView | null) => {
                 currentViewIdRef.current = view?.id ?? null;
+                setCurrentViewId(view?.id ?? null);
                 hasInitializedSelectionRef.current = true;
 
                 if (onViewChange) {
@@ -1623,6 +1636,7 @@ export function DataTable<TData extends Record<string, unknown>>({
             {effectiveGlobalFilters.length > 0 && (
               <FilterDropdown
                 tableId={tableId}
+                persistenceKey={tableId ? getQuickFiltersKey(tableId, currentViewId) : undefined}
                 filters={effectiveGlobalFilters}
                 values={globalFilterValues}
                 onChange={handleGlobalFiltersChange}

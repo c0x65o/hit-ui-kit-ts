@@ -33,6 +33,7 @@ export const FILTER_OPERATORS = {
   DATE_EQUALS: 'dateEquals',
   DATE_BEFORE: 'dateBefore',
   DATE_AFTER: 'dateAfter',
+  DATE_BETWEEN: 'dateBetween',
   IS_NULL: 'isNull',
   IS_NOT_NULL: 'isNotNull',
   IS_TRUE: 'isTrue',
@@ -47,7 +48,7 @@ export interface ViewColumnDefinition {
   key: string;
   label: string;
   /** Field type: 'string' | 'number' | 'date' | 'daterange' | 'boolean' | 'select' | 'multiselect' | 'autocomplete' */
-  type?: 'string' | 'number' | 'date' | 'daterange' | 'boolean' | 'select' | 'multiselect' | 'autocomplete';
+  type?: 'string' | 'number' | 'date' | 'datetime' | 'daterange' | 'boolean' | 'select' | 'multiselect' | 'autocomplete';
   /** Options for select/multiselect fields (with optional sortOrder for grouping) */
   options?: Array<{ value: string; label: string; sortOrder?: number }>;
   /** Whether this column can be hidden (default: true) */
@@ -501,7 +502,10 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
           { value: 'lessThanOrEqual', label: 'Less Than or Equal' },
         ];
       case 'date':
+      case 'datetime':
+      case 'daterange':
         return [
+          { value: 'dateBetween', label: 'Between' },
           { value: 'dateEquals', label: 'Equals' },
           { value: 'dateBefore', label: 'Before' },
           { value: 'dateAfter', label: 'After' },
@@ -586,11 +590,65 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
     }
 
     // Date field
-    if (fieldType === 'date') {
+    if (fieldType === 'date' || fieldType === 'datetime' || fieldType === 'daterange') {
+      // dateBetween stores a JSON string value: {"from":"...","to":"..."}
+      if (operator === 'dateBetween') {
+        let from = '';
+        let to = '';
+        const raw = filter.value?.toString() || '';
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object') {
+              from = String((parsed as any).from || (parsed as any).start || '');
+              to = String((parsed as any).to || (parsed as any).end || '');
+            }
+          } catch {
+            // Support legacy "a..b" or "a,b"
+            const sep = raw.includes('..') ? '..' : (raw.includes(',') ? ',' : null);
+            if (sep) {
+              const parts = raw.split(sep).map((s) => s.trim());
+              from = parts[0] || '';
+              to = parts[1] || '';
+            }
+          }
+        }
+
+        const inputType = fieldType === 'datetime' ? 'datetime-local' : 'date';
+
+        const setRange = (patch: { from?: string; to?: string }) => {
+          const nextFrom = patch.from !== undefined ? patch.from : from;
+          const nextTo = patch.to !== undefined ? patch.to : to;
+          if (!nextFrom && !nextTo) {
+            handleFilterChange(index, 'value', '');
+            return;
+          }
+          handleFilterChange(index, 'value', JSON.stringify({ from: nextFrom || '', to: nextTo || '' }));
+        };
+
+        return (
+          <div style={{ flex: 1, display: 'flex', gap: spacing.sm, alignItems: 'center' }}>
+            <Input
+              type={inputType as any}
+              value={from}
+              onChange={(value) => setRange({ from: value })}
+              placeholder="Start..."
+            />
+            <span style={styles({ color: colors.text.muted, fontSize: ts.bodySmall.fontSize })}>to</span>
+            <Input
+              type={inputType as any}
+              value={to}
+              onChange={(value) => setRange({ to: value })}
+              placeholder="End..."
+            />
+          </div>
+        );
+      }
+
       return (
         <div style={{ flex: 1 }}>
           <Input
-            type="date"
+            type={(fieldType === 'datetime' ? 'datetime-local' : 'date') as any}
             value={filter.value?.toString() || ''}
             onChange={(value) => handleFilterChange(index, 'value', value)}
           />
