@@ -1739,32 +1739,6 @@ export function DataTable<TData extends Record<string, unknown>>({
               />
             )}
 
-            {exportable && (
-              <Dropdown
-                align="right"
-                trigger={
-                  <Button variant="secondary" size="sm" title="Settings">
-                    <Settings size={16} />
-                  </Button>
-                }
-                items={[
-                  {
-                    label: 'Reset table (local)',
-                    icon: <Trash2 size={14} />,
-                    onClick: () => void resetLocalTableState(),
-                    disabled: !tableId,
-                    danger: true,
-                  },
-                  {
-                    label: 'Export CSV',
-                    icon: <Download size={14} />,
-                    onClick: handleExport,
-                    disabled: !hasData,
-                  },
-                ]}
-              />
-            )}
-
             {/* Icon-only controls grouped together on the far right */}
             <div style={styles({ display: 'flex', gap: spacing.xs, alignItems: 'center' })}>
               {showRefresh && (
@@ -1810,6 +1784,33 @@ export function DataTable<TData extends Record<string, unknown>>({
                 >
                   {overlayPinned ? <Lock size={16} /> : <Unlock size={16} />}
                 </Button>
+              )}
+
+              {/* Settings dropdown (kept far-right, after refresh/lock) */}
+              {exportable && (
+                <Dropdown
+                  align="right"
+                  trigger={
+                    <Button variant="secondary" size="sm" title="Settings">
+                      <Settings size={16} />
+                    </Button>
+                  }
+                  items={[
+                    {
+                      label: 'Reset table (local)',
+                      icon: <Trash2 size={14} />,
+                      onClick: () => void resetLocalTableState(),
+                      disabled: !tableId,
+                      danger: true,
+                    },
+                    {
+                      label: 'Export CSV',
+                      icon: <Download size={14} />,
+                      onClick: handleExport,
+                      disabled: !hasData,
+                    },
+                  ]}
+                />
               )}
             </div>
           </div>
