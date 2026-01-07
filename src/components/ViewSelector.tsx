@@ -100,6 +100,10 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
     onViewChange,
   });
   const alertDialog = useAlertDialog();
+
+  // Cache dynamic select options for view builder (optionsEndpoint from TABLE_FILTER_REGISTRY)
+  const [registryOptionsCache, setRegistryOptionsCache] = useState<Record<string, Array<{ value: string; label: string }>>>({});
+  const [registryOptionsLoading, setRegistryOptionsLoading] = useState(false);
   
   // Use ref for onReady to avoid infinite loops when parent passes new function reference
   const onReadyRef = useRef(onReady);
@@ -115,13 +119,15 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
     // Build a map of registry filters by columnKey
     const registryMap = new Map<string, ViewColumnDefinition>();
     for (const filter of registryFilters) {
+      const cachedOptions = registryOptionsCache[filter.columnKey];
       // Convert TableFilterDefinition to ViewColumnDefinition
       // Keep 'autocomplete' type so we can render the right component
       registryMap.set(filter.columnKey, {
         key: filter.columnKey,
         label: filter.label,
         type: filter.filterType as any,
-        options: filter.staticOptions,
+        // For select/multiselect, prefer staticOptions, else use fetched options.
+        options: filter.staticOptions || cachedOptions,
         // Preserve autocomplete endpoints
         searchEndpoint: filter.searchEndpoint,
         resolveEndpoint: filter.resolveEndpoint,
@@ -157,7 +163,73 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
     
     // No registry, use passed columns
     return availableColumns;
-  }, [tableId, availableColumns]);
+  }, [tableId, availableColumns, registryOptionsCache]);
+
+  // Fetch dynamic options for select/multiselect fields used in view builder.
+  // Without this, view filters fall back to a free-text input even when quick-filters show a dropdown.
+  useEffect(() => {
+    const registryFilters = getTableFilters(tableId);
+    const dynamicSelects = registryFilters.filter(
+      (f) => (f.filterType === 'select' || f.filterType === 'multiselect') && !!f.optionsEndpoint
+    );
+    if (dynamicSelects.length === 0) return;
+
+    let cancelled = false;
+    setRegistryOptionsLoading(true);
+
+    const fetchOptions = async (f: TableFilterDefinition) => {
+      try {
+        // Be generous on pageSize so we can build a complete dropdown for view builder.
+        const url = f.optionsEndpoint!.includes('?')
+          ? `${f.optionsEndpoint}&pageSize=500`
+          : `${f.optionsEndpoint}?pageSize=500`;
+        const res = await fetch(url);
+        if (!res.ok) return { key: f.columnKey, options: [] as Array<{ value: string; label: string }> };
+        const json = await res.json();
+
+        // Extract items from response
+        const itemsPath = f.itemsPath;
+        let items = json;
+        if (itemsPath) {
+          for (const part of itemsPath.split('.')) {
+            items = items?.[part];
+          }
+        }
+        if (!Array.isArray(items)) items = [];
+
+        const valueField = f.valueField || 'id';
+        const labelField = f.labelField || 'name';
+        const options = items
+          .map((item: any) => {
+            const value = String(item?.[valueField] ?? item?.id ?? '');
+            const label = String(item?.[labelField] ?? item?.name ?? value);
+            return value ? { value, label } : null;
+          })
+          .filter(Boolean) as Array<{ value: string; label: string }>;
+
+        return { key: f.columnKey, options };
+      } catch {
+        return { key: f.columnKey, options: [] as Array<{ value: string; label: string }> };
+      }
+    };
+
+    Promise.all(dynamicSelects.map(fetchOptions))
+      .then((results) => {
+        if (cancelled) return;
+        setRegistryOptionsCache((prev) => {
+          const next = { ...prev };
+          for (const r of results) next[r.key] = r.options;
+          return next;
+        });
+      })
+      .finally(() => {
+        if (!cancelled) setRegistryOptionsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tableId]);
   
   // Notify parent when view system is ready
   useEffect(() => {
