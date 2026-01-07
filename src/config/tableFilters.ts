@@ -247,6 +247,44 @@ export const TABLE_FILTER_REGISTRY: Record<string, TableFilterDefinition[]> = {
       labelField: 'name',
     },
   ],
+
+  // Workflows - Runs (global runs list)
+  'workflows.runs': [
+    {
+      columnKey: 'status',
+      label: 'Status',
+      filterType: 'select',
+      staticOptions: [
+        { value: 'queued', label: 'Queued' },
+        { value: 'running', label: 'Running' },
+        { value: 'waiting', label: 'Waiting' },
+        { value: 'succeeded', label: 'Succeeded' },
+        { value: 'failed', label: 'Failed' },
+        { value: 'cancelled', label: 'Cancelled' },
+        // Back-compat / UI label used in some places
+        { value: 'completed', label: 'Completed' },
+      ],
+    },
+    {
+      columnKey: 'triggerType',
+      label: 'Trigger',
+      filterType: 'string',
+    },
+  ],
+
+  // Admin - AI traces
+  'admin.ai.traces': [
+    {
+      columnKey: 'pack',
+      label: 'Pack',
+      filterType: 'string',
+    },
+    {
+      columnKey: 'kind',
+      label: 'Kind',
+      filterType: 'string',
+    },
+  ],
 };
 
 /**
