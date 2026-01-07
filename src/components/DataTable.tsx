@@ -20,6 +20,8 @@ import {
   Download, 
   Eye, 
   EyeOff, 
+  Lock,
+  Unlock,
   Search,
   ChevronLeft,
   ChevronRight,
@@ -168,6 +170,21 @@ export function DataTable<TData extends Record<string, unknown>>({
   // Track current selected view id for per-view quick filter persistence.
   // (null = "All Items")
   const [currentViewId, setCurrentViewId] = useState<string | null>(null);
+
+  // When pinned, quick filters + local modifiers persist across view switches (no "fighting").
+  // When not pinned, they persist per view.
+  const [overlayPinned, setOverlayPinned] = useState(false);
+  const overlayPinnedKey = tableId ? `hit:table-overlay-pinned:${tableId}` : null;
+  useEffect(() => {
+    if (!overlayPinnedKey) return;
+    try {
+      const raw = localStorage.getItem(overlayPinnedKey);
+      if (raw === 'true') setOverlayPinned(true);
+      if (raw === 'false') setOverlayPinned(false);
+    } catch {
+      // ignore
+    }
+  }, [overlayPinnedKey]);
   
   const [sorting, setSorting] = useState<SortingState>(
     initialSorting?.map((s) => ({ id: s.id, desc: s.desc ?? false })) || []
@@ -460,8 +477,9 @@ export function DataTable<TData extends Record<string, unknown>>({
       // No views: don't write before we finish the one-time restore.
       if (!hasInitializedSelectionRef.current) return;
     }
-    writeModifiers(tableId, currentViewIdRef.current, { sorting, columnVisibility });
-  }, [viewsEnabled, tableId, viewSystemReady, sorting, columnVisibility]);
+    const keyViewId = overlayPinned ? '__pinned__' : currentViewIdRef.current;
+    writeModifiers(tableId, keyViewId, { sorting, columnVisibility });
+  }, [viewsEnabled, tableId, viewSystemReady, sorting, columnVisibility, overlayPinned]);
 
   // For now, we only enforce "no best-effort + auto-show" on projects.
   // Easy to extend later (e.g. CRM) without changing domain feature packs.
@@ -1495,88 +1513,109 @@ export function DataTable<TData extends Record<string, unknown>>({
           flexWrap: 'wrap',
         })}>
           {viewsEnabled && tableId && (
-            <ViewSelector 
-              tableId={tableId} 
-              availableColumns={[
-                ...columns.map((col) => ({ 
-                  key: col.key, 
-                  label: col.label, 
-                  // Best-effort inference so view filters "just work" even without registry entries.
-                  // Particularly helpful for date-ish fields like createdAt/updatedAt/*Timestamp.
-                  type:
-                    col.filterType ||
-                    (/(?:At|_at|On|_on|Date|_date|Timestamp|_timestamp)$/i.test(String(col.key))
-                      ? ('date' as const)
-                      : ('string' as const)),
-                  options: col.filterOptions,
-                  hideable: col.hideable !== false,
-                })),
-                ...Object.values(bucketColumns || {}).map((c) => ({
-                  key: c.columnKey,
-                  label: c.columnLabel || c.columnKey,
-                  type: 'select' as const,
-                  options: (c.buckets || []).map((b) => ({ value: b.bucketLabel, label: b.bucketLabel, sortOrder: b.sortOrder })),
-                  hideable: true,
-                })),
-                ...Object.values(metricColumns || {})
-                  .slice()
-                  .sort((a, b) => (Number(a?.sortOrder ?? 0) - Number(b?.sortOrder ?? 0)) || String(a?.columnLabel || a?.columnKey || '').localeCompare(String(b?.columnLabel || b?.columnKey || '')))
-                  .map((c) => ({
+            <div style={styles({ display: 'flex', gap: spacing.xs, alignItems: 'center' })}>
+              <ViewSelector 
+                tableId={tableId} 
+                availableColumns={[
+                  ...columns.map((col) => ({ 
+                    key: col.key, 
+                    label: col.label, 
+                    // Best-effort inference so view filters "just work" even without registry entries.
+                    // Particularly helpful for date-ish fields like createdAt/updatedAt/*Timestamp.
+                    type:
+                      col.filterType ||
+                      (/(?:At|_at|On|_on|Date|_date|Timestamp|_timestamp)$/i.test(String(col.key))
+                        ? ('date' as const)
+                        : ('string' as const)),
+                    options: col.filterOptions,
+                    hideable: col.hideable !== false,
+                  })),
+                  ...Object.values(bucketColumns || {}).map((c) => ({
                     key: c.columnKey,
                     label: c.columnLabel || c.columnKey,
-                    type: 'number' as const,
+                    type: 'select' as const,
+                    options: (c.buckets || []).map((b) => ({ value: b.bucketLabel, label: b.bucketLabel, sortOrder: b.sortOrder })),
                     hideable: true,
                   })),
-              ]}
-              onReady={setViewSystemReady}
-              onViewChange={(view: TableView | null) => {
-                currentViewIdRef.current = view?.id ?? null;
-                setCurrentViewId(view?.id ?? null);
-                hasInitializedSelectionRef.current = true;
+                  ...Object.values(metricColumns || {})
+                    .slice()
+                    .sort((a, b) => (Number(a?.sortOrder ?? 0) - Number(b?.sortOrder ?? 0)) || String(a?.columnLabel || a?.columnKey || '').localeCompare(String(b?.columnLabel || b?.columnKey || '')))
+                    .map((c) => ({
+                      key: c.columnKey,
+                      label: c.columnLabel || c.columnKey,
+                      type: 'number' as const,
+                      hideable: true,
+                    })),
+                ]}
+                onReady={setViewSystemReady}
+                onViewChange={(view: TableView | null) => {
+                  currentViewIdRef.current = view?.id ?? null;
+                  setCurrentViewId(view?.id ?? null);
+                  hasInitializedSelectionRef.current = true;
 
-                if (onViewChange) {
-                  onViewChange(view as any);
-                }
-                if (onViewFiltersChange) {
-                  onViewFiltersChange(view?.filters || []);
-                }
-                if (onViewFilterModeChange) {
-                  const modeRaw = (view as any)?.metadata?.filterMode;
-                  const mode: 'all' | 'any' = modeRaw === 'any' ? 'any' : 'all';
-                  onViewFilterModeChange(mode);
-                }
-                if (onViewSortingChange) {
-                  onViewSortingChange((view?.sorting as any) || []);
-                }
+                  if (onViewChange) {
+                    onViewChange(view as any);
+                  }
+                  if (onViewFiltersChange) {
+                    onViewFiltersChange(view?.filters || []);
+                  }
+                  if (onViewFilterModeChange) {
+                    const modeRaw = (view as any)?.metadata?.filterMode;
+                    const mode: 'all' | 'any' = modeRaw === 'any' ? 'any' : 'all';
+                    onViewFilterModeChange(mode);
+                  }
+                  if (onViewSortingChange) {
+                    onViewSortingChange((view?.sorting as any) || []);
+                  }
 
-                // Apply view defaults, then overlay local modifiers (per-view).
-                const baseSorting: SortingState =
-                  view?.sorting && Array.isArray(view.sorting)
-                    ? view.sorting
-                        .map((s: any) => ({ id: String(s?.id || ''), desc: Boolean(s?.desc) }))
-                        .filter((s: any) => s.id)
-                    : initialSorting?.map((s) => ({ id: s.id, desc: s.desc ?? false })) || [];
+                  // Apply view defaults, then overlay local modifiers (per-view or pinned).
+                  const baseSorting: SortingState =
+                    view?.sorting && Array.isArray(view.sorting)
+                      ? view.sorting
+                          .map((s: any) => ({ id: String(s?.id || ''), desc: Boolean(s?.desc) }))
+                          .filter((s: any) => s.id)
+                      : initialSorting?.map((s) => ({ id: s.id, desc: s.desc ?? false })) || [];
 
-                const baseColumnVisibility: VisibilityState =
-                  (view?.columnVisibility as any) ?? (initialColumnVisibility || {});
+                  const baseColumnVisibility: VisibilityState =
+                    (view?.columnVisibility as any) ?? (initialColumnVisibility || {});
 
-                const mods = readModifiers(tableId, view?.id ?? null);
-                if (mods?.sorting) setSorting(mods.sorting);
-                else setSorting(baseSorting);
+                  const mods = readModifiers(tableId, overlayPinned ? '__pinned__' : (view?.id ?? null));
+                  if (mods?.sorting) setSorting(mods.sorting);
+                  else setSorting(baseSorting);
 
-                if (mods?.columnVisibility) setColumnVisibility(mods.columnVisibility);
-                else setColumnVisibility(baseColumnVisibility);
+                  if (mods?.columnVisibility) setColumnVisibility(mods.columnVisibility);
+                  else setColumnVisibility(baseColumnVisibility);
 
-                // Apply groupBy from view
-                const newGroupBy = view?.groupBy || null;
-                setViewGroupBy(newGroupBy);
-                // Reset per-group pagination when view changes
-                setGroupPages({});
-                if (onViewGroupByChange) {
-                  onViewGroupByChange(newGroupBy);
-                }
-              }}
-            />
+                  // Apply groupBy from view
+                  const newGroupBy = view?.groupBy || null;
+                  setViewGroupBy(newGroupBy);
+                  // Reset per-group pagination when view changes
+                  setGroupPages({});
+                  if (onViewGroupByChange) {
+                    onViewGroupByChange(newGroupBy);
+                  }
+                }}
+              />
+
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  const next = !overlayPinned;
+                  setOverlayPinned(next);
+                  if (overlayPinnedKey) {
+                    try {
+                      localStorage.setItem(overlayPinnedKey, next ? 'true' : 'false');
+                    } catch {
+                      // ignore
+                    }
+                  }
+                }}
+                title={overlayPinned ? 'Pinned: keep filters/columns/sort across views' : 'Per-view: keep filters/columns/sort per view'}
+              >
+                {overlayPinned ? <Lock size={16} /> : <Unlock size={16} />}
+              </Button>
+            </div>
           )}
           {searchable && (
             <div style={{ flex: '1', minWidth: '200px', maxWidth: '400px', position: 'relative' }}>
@@ -1636,7 +1675,7 @@ export function DataTable<TData extends Record<string, unknown>>({
             {effectiveGlobalFilters.length > 0 && (
               <FilterDropdown
                 tableId={tableId}
-                persistenceKey={tableId ? getQuickFiltersKey(tableId, currentViewId) : undefined}
+                persistenceKey={tableId ? getQuickFiltersKey(tableId, overlayPinned ? '__pinned__' : currentViewId) : undefined}
                 filters={effectiveGlobalFilters}
                 values={globalFilterValues}
                 onChange={handleGlobalFiltersChange}
