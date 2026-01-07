@@ -274,7 +274,7 @@ export function useTableView({ tableId, onViewChange }: UseTableViewOptions) {
     }
     const json = await res.json();
     const newView = json.data;
-    setViews((prev) => [...prev, newView]);
+    setViews((prev: TableView[]) => [...prev, newView]);
     return newView;
   }, [tableId]);
 
@@ -290,8 +290,8 @@ export function useTableView({ tableId, onViewChange }: UseTableViewOptions) {
     }
     const json = await res.json();
     const updatedView = json.data;
-    setViews((prev) => prev.map((v) => (v.id === viewId ? updatedView : v)));
-    setCurrentView((current) => (current?.id === viewId ? updatedView : current));
+    setViews((prev: TableView[]) => prev.map((v: TableView) => (v.id === viewId ? updatedView : v)));
+    setCurrentView((current: TableView | null) => (current?.id === viewId ? updatedView : current));
     return updatedView;
   }, []);
 
@@ -303,8 +303,8 @@ export function useTableView({ tableId, onViewChange }: UseTableViewOptions) {
       const json = await res.json().catch(() => ({}));
       throw new Error(json?.error || 'Failed to delete view');
     }
-    setViews((prev) => prev.filter((v) => v.id !== viewId));
-    setCurrentView((current) => {
+    setViews((prev: TableView[]) => prev.filter((v: TableView) => v.id !== viewId));
+    setCurrentView((current: TableView | null) => {
       if (current?.id !== viewId) return current;
       // Don't auto-fall back to any "default" view. If the selected view was deleted,
       // return to "All Items" and let the user explicitly pick another view.
@@ -358,7 +358,7 @@ export function useTableView({ tableId, onViewChange }: UseTableViewOptions) {
     }
     const json = await res.json();
     // Update view's isShared flag locally
-    setViews((prev) => prev.map((v) => (v.id === viewId ? { ...v, isShared: true } : v)));
+    setViews((prev: TableView[]) => prev.map((v: TableView) => (v.id === viewId ? { ...v, isShared: true } : v)));
     return json.data;
   }, []);
 

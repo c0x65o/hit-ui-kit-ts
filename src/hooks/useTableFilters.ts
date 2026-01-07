@@ -47,12 +47,12 @@ export function useTableFilters(tableId: string | undefined) {
 
     // Get filters that need options fetched
     const selectFilters = filterDefs.filter(
-      (f) => (f.filterType === 'select' || f.filterType === 'multiselect') && f.optionsEndpoint
+      (f: TableFilterDefinition) => (f.filterType === 'select' || f.filterType === 'multiselect') && f.optionsEndpoint
     );
     
     // Also pre-fetch autocomplete filters to check if they should be dropdowns
     const autocompleteFilters = filterDefs.filter(
-      (f) => f.filterType === 'autocomplete' && f.searchEndpoint
+      (f: TableFilterDefinition) => f.filterType === 'autocomplete' && f.searchEndpoint
     );
 
     if (!selectFilters.length && !autocompleteFilters.length) return;
@@ -110,8 +110,8 @@ export function useTableFilters(tableId: string | undefined) {
     };
 
     Promise.all([
-      ...selectFilters.map((f) => fetchOptions(f, f.optionsEndpoint!, false)),
-      ...autocompleteFilters.map((f) => fetchOptions(f, f.searchEndpoint!, true)),
+      ...selectFilters.map((f: TableFilterDefinition) => fetchOptions(f, f.optionsEndpoint!, false)),
+      ...autocompleteFilters.map((f: TableFilterDefinition) => fetchOptions(f, f.searchEndpoint!, true)),
     ]).then((results) => {
       if (cancelled) return;
       
@@ -141,7 +141,7 @@ export function useTableFilters(tableId: string | undefined) {
 
   // Build GlobalFilterConfig array
   const filters = useMemo<GlobalFilterConfig[]>(() => {
-    return filterDefs.map((def): GlobalFilterConfig => {
+    return filterDefs.map((def: TableFilterDefinition): GlobalFilterConfig => {
       // Smart switching: if autocomplete has few options, render as dropdown instead
       const shouldBeDropdown = def.filterType === 'autocomplete' && autocompleteAsDropdown.has(def.columnKey);
       const effectiveFilterType = shouldBeDropdown ? 'select' : def.filterType;
