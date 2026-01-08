@@ -29,8 +29,11 @@ export function AclPicker({
   confirmRemoveMessage,
   error: externalError = null,
 }: AclPickerProps) {
-  const { Button, Alert, Spinner, Select, Badge, Checkbox } = useUi();
+  const { Button, Alert, Spinner, Select, Badge, Checkbox, fetchPrincipals: globalFetchPrincipals } = useUi();
   
+  // Use prop if provided, otherwise use global fetcher from UI Kit context
+  const effectiveFetchPrincipals = fetchPrincipals || globalFetchPrincipals;
+
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedPrincipalType, setSelectedPrincipalType] = useState<PrincipalType>('user');
   const [selectedPrincipalId, setSelectedPrincipalId] = useState('');
@@ -60,20 +63,20 @@ export function AclPicker({
 
   // Fetch all principals on mount for display name lookups
   useEffect(() => {
-    if (fetchPrincipals) {
+    if (effectiveFetchPrincipals) {
       const fetchAll = async () => {
         const allPrincipals: Principal[] = [];
         try {
           if (enabledPrincipals.users) {
-            const users = await fetchPrincipals('user');
+            const users = await effectiveFetchPrincipals('user');
             allPrincipals.push(...users);
           }
           if (enabledPrincipals.groups) {
-            const groups = await fetchPrincipals('group');
+            const groups = await effectiveFetchPrincipals('group');
             allPrincipals.push(...groups);
           }
           if (enabledPrincipals.roles) {
-            const roles = await fetchPrincipals('role');
+            const roles = await effectiveFetchPrincipals('role');
             allPrincipals.push(...roles);
           }
           setAllPrincipalsCache(allPrincipals);
@@ -83,13 +86,13 @@ export function AclPicker({
       };
       fetchAll();
     }
-  }, [fetchPrincipals, enabledPrincipals.users, enabledPrincipals.groups, enabledPrincipals.roles]);
+  }, [effectiveFetchPrincipals, enabledPrincipals.users, enabledPrincipals.groups, enabledPrincipals.roles]);
 
   // Fetch principals using custom fetcher if provided (for the add form dropdown)
   useEffect(() => {
-    if (fetchPrincipals && showAddForm) {
+    if (effectiveFetchPrincipals && showAddForm) {
       setCustomPrincipalsLoading(true);
-      fetchPrincipals(selectedPrincipalType)
+      effectiveFetchPrincipals(selectedPrincipalType)
         .then(setCustomPrincipals)
         .catch((err) => {
           console.error('Failed to fetch principals:', err);
@@ -97,12 +100,12 @@ export function AclPicker({
         })
         .finally(() => setCustomPrincipalsLoading(false));
     }
-  }, [fetchPrincipals, selectedPrincipalType, showAddForm]);
+  }, [effectiveFetchPrincipals, selectedPrincipalType, showAddForm]);
 
-  const principals = fetchPrincipals ? customPrincipals : hookPrincipals;
-  const principalsLoadingState = fetchPrincipals ? customPrincipalsLoading : principalsLoading;
+  const principals = effectiveFetchPrincipals ? customPrincipals : hookPrincipals;
+  const principalsLoadingState = effectiveFetchPrincipals ? customPrincipalsLoading : principalsLoading;
   const principalsErrorState: Error | null =
-    !fetchPrincipals && showAddForm
+    !effectiveFetchPrincipals && showAddForm
       ? new Error('AclPicker requires fetchPrincipals to load principal options')
       : null;
 
@@ -266,7 +269,7 @@ export function AclPicker({
     // Check current principals first (for add form), then fall back to cache
     const principal = principals.find((p: Principal) => p.type === principalType && p.id === principalId)
       || allPrincipalsCache.find((p: Principal) => p.type === principalType && p.id === principalId)
-      || (fetchPrincipals ? null : hookPrincipals.find((p: Principal) => p.type === principalType && p.id === principalId));
+      || (effectiveFetchPrincipals ? null : hookPrincipals.find((p: Principal) => p.type === principalType && p.id === principalId));
     return principal?.displayName || principalId;
   }
 

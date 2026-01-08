@@ -66,6 +66,7 @@ function notImplemented(name: string) {
  */
 export function createKit(partial: Partial<UiKit>): UiKit {
   return {
+    fetchPrincipals: partial.fetchPrincipals,
     Page: partial.Page ?? notImplemented('Page'),
     Card: partial.Card ?? notImplemented('Card'),
     Button: partial.Button ?? notImplemented('Button'),

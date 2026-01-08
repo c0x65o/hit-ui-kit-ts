@@ -304,6 +304,8 @@ export interface DataTableProps<T = Record<string, unknown>> {
   onViewGroupByChange?: (groupBy: any) => void;
   onViewSortingChange?: (sorting: Array<{ id: string; desc?: boolean }>) => void;
   onViewChange?: (view: any) => void;
+  /** Optional custom principal fetcher for view sharing. If not provided, uses global fetcher from UI Kit. */
+  fetchPrincipals?: (type: PrincipalType, search?: string) => Promise<Principal[]>;
 }
 
 export interface BadgeProps {
@@ -433,7 +435,12 @@ export interface HelpProps {
 // UI KIT INTERFACE
 // =============================================================================
 
+import type { Principal, PrincipalType } from './types/acl';
+
 export interface UiKit {
+  /** Global principal fetcher for ACL components */
+  fetchPrincipals?: (type: PrincipalType, search?: string) => Promise<Principal[]>;
+
   // Layout
   Page: React.ComponentType<PageProps>;
   Card: React.ComponentType<CardProps>;

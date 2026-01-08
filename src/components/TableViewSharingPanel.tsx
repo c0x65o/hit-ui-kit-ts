@@ -3,9 +3,10 @@
 import React, { useMemo } from 'react';
 import { useThemeTokens } from '../theme/index.js';
 import { styles } from './utils.js';
+import { useUi } from '../index.js';
 import type { TableViewShare } from '../hooks/useTableView';
 import { AclPicker } from './AclPicker.js';
-import type { AclEntry, AclPickerConfig } from '../types/acl';
+import type { AclEntry, AclPickerConfig, Principal, PrincipalType } from '../types/acl';
 
 export type TableViewShareRecipient = {
   principalType: 'user' | 'group' | 'role';
@@ -31,6 +32,9 @@ interface TableViewSharingPanelProps {
 
   /** If true, user can choose user/group/role. If false, principalType is forced to 'user'. */
   allowPrincipalTypeSelection?: boolean;
+
+  /** Optional custom principal fetcher. If not provided, uses global fetcher from UI Kit. */
+  fetchPrincipals?: (type: PrincipalType, search?: string) => Promise<Principal[]>;
 }
 
 export function TableViewSharingPanel({
@@ -43,9 +47,13 @@ export function TableViewSharingPanel({
   addShare,
   removeShare,
   allowPrincipalTypeSelection = true,
+  fetchPrincipals,
 }: TableViewSharingPanelProps) {
   const { colors, radius, spacing, textStyles: ts } = useThemeTokens();
+  const { fetchPrincipals: globalFetchPrincipals } = useUi();
   const isEditing = !!viewId;
+
+  const effectiveFetchPrincipals = fetchPrincipals || globalFetchPrincipals;
 
   const entries: AclEntry[] = useMemo(() => {
     const toEntry = (principalType: 'user' | 'group' | 'role', principalId: string, id?: string): AclEntry => ({
@@ -131,6 +139,7 @@ export function TableViewSharingPanel({
           validateEntry={validateDuplicate}
           onAdd={handleAdd}
           onRemove={handleRemoveEntry}
+          fetchPrincipals={effectiveFetchPrincipals}
           // For view sharing, removal should be a single click (no confirm prompt)
           confirmRemove={false}
         />

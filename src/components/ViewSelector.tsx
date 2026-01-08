@@ -15,6 +15,7 @@ import { TableViewSharingPanel, type TableViewShareRecipient } from './TableView
 import { styles } from './utils.js';
 import { Autocomplete } from './Autocomplete.js';
 import { getTableFilters, type TableFilterDefinition } from '../config/tableFilters.js';
+import type { Principal, PrincipalType } from '../types/acl.js';
 
 /**
  * Filter operators for table views
@@ -72,6 +73,8 @@ interface ViewSelectorProps {
   onReady?: (ready: boolean) => void;
   /** Column definitions with type info and options for select fields */
   availableColumns?: ViewColumnDefinition[];
+  /** Optional custom principal fetcher. If not provided, uses global fetcher from UI Kit. */
+  fetchPrincipals?: (type: PrincipalType, search?: string) => Promise<Principal[]>;
 }
 
 /**
@@ -94,7 +97,7 @@ interface ViewSelectorProps {
  * />
  * ```
  */
-export function ViewSelector({ tableId, onViewChange, onReady, availableColumns = [] }: ViewSelectorProps) {
+export function ViewSelector({ tableId, onViewChange, onReady, availableColumns = [], fetchPrincipals }: ViewSelectorProps) {
   const { colors, radius, spacing, textStyles: ts, shadows } = useThemeTokens();
   const { views, currentView, loading, available, viewReady, selectView, deleteView, createView, updateView, getShares, addShare, removeShare } = useTableView({
     tableId,
@@ -1606,6 +1609,7 @@ export function ViewSelector({ tableId, onViewChange, onReady, availableColumns 
                 setPendingRecipients={setPendingShareRecipients}
                 addShare={addShare}
                 removeShare={removeShare}
+                fetchPrincipals={fetchPrincipals}
               />
             )}
 

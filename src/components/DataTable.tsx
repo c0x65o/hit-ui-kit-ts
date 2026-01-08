@@ -37,7 +37,8 @@ import { styles } from './utils';
 import { Button } from './Button';
 import { Input } from './Input';
 import { Dropdown } from './Dropdown';
-import { ViewSelector } from './ViewSelector';
+import { ViewSelector } from './ViewSelector.js';
+import type { Principal, PrincipalType } from '../types/acl.js';
 import { FilterDropdown } from './FilterDropdown';
 import { useAlertDialog } from '../hooks/useAlertDialog.js';
 import { AlertDialog } from './AlertDialog.js';
@@ -167,6 +168,7 @@ export function DataTable<TData extends Record<string, unknown>>({
   onViewGroupByChange,
   onViewSortingChange,
   onViewChange,
+  fetchPrincipals,
 }: DataTableProps<TData>) {
   // Auto-enable views if tableId is provided (unless explicitly disabled)
   const viewsEnabled = enableViews !== undefined ? enableViews : !!tableId;
@@ -1579,6 +1581,7 @@ export function DataTable<TData extends Record<string, unknown>>({
           {viewsEnabled && tableId && (
             <ViewSelector 
               tableId={tableId} 
+              fetchPrincipals={fetchPrincipals}
               availableColumns={[
                 ...columns.map((col) => ({ 
                   key: col.key, 
