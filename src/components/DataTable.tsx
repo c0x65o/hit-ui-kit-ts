@@ -699,6 +699,8 @@ export function DataTable<TData extends Record<string, unknown>>({
   }, [metricColumnsLoaded, metricColumns]);
 
   // Evaluate bucket labels for visible bucket columns on current page rows (best-effort, non-sorting).
+  // Fetches are done in parallel to avoid race conditions where sequential fetches get cancelled
+  // mid-stream when dependencies change.
   useEffect(() => {
     if (!tableId) return;
     const visibleBucketKeys = Object.keys(bucketColumns || {}).filter((k) => (columnVisibility as any)?.[k] === true);
@@ -731,32 +733,46 @@ export function DataTable<TData extends Record<string, unknown>>({
     if (!colKeys.length) return;
 
     let cancelled = false;
-    (async () => {
-      for (const colKey of colKeys) {
-        const meta = bucketColumns[colKey];
-        const entityKind = meta?.entityKind || '';
-        if (!entityKind) continue;
-        try {
-          const res = await fetch('/api/metrics/segments/table-buckets/evaluate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tableId, columnKey: colKey, entityKind, entityIds: idsByCol[colKey] }),
-          });
-          const json = await res.json().catch(() => ({}));
-          if (!res.ok) continue;
-          const values = json?.data?.values && typeof json.data.values === 'object' ? json.data.values : {};
-          const map: Record<string, string> = {};
-          for (const [id, val] of Object.entries(values)) {
-            const x: any = val;
-            const label = x && typeof x === 'object' && typeof x.bucketLabel === 'string' ? x.bucketLabel : '';
-            if (label) map[String(id)] = label;
-          }
-          if (!cancelled) {
-            setBucketValues((prev) => ({ ...(prev || {}), [colKey]: map }));
-          }
-        } catch {
-          // ignore
+
+    // Fetch a single column's bucket labels
+    const fetchColumn = async (colKey: string): Promise<{ colKey: string; map: Record<string, string> } | null> => {
+      const meta = bucketColumns[colKey];
+      const entityKind = meta?.entityKind || '';
+      if (!entityKind) return null;
+      try {
+        const res = await fetch('/api/metrics/segments/table-buckets/evaluate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tableId, columnKey: colKey, entityKind, entityIds: idsByCol[colKey] }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) return null;
+        const values = json?.data?.values && typeof json.data.values === 'object' ? json.data.values : {};
+        const map: Record<string, string> = {};
+        for (const [id, val] of Object.entries(values)) {
+          const x: any = val;
+          const label = x && typeof x === 'object' && typeof x.bucketLabel === 'string' ? x.bucketLabel : '';
+          if (label) map[String(id)] = label;
         }
+        return { colKey, map };
+      } catch {
+        return null;
+      }
+    };
+
+    // Fetch all columns in parallel, then update state atomically
+    (async () => {
+      const results = await Promise.all(colKeys.map(fetchColumn));
+      if (cancelled) return;
+      // Merge all successful results into a single state update
+      const merged: Record<string, Record<string, string>> = {};
+      for (const result of results) {
+        if (result) {
+          merged[result.colKey] = result.map;
+        }
+      }
+      if (Object.keys(merged).length > 0) {
+        setBucketValues((prev) => ({ ...(prev || {}), ...merged }));
       }
     })();
 
@@ -766,6 +782,8 @@ export function DataTable<TData extends Record<string, unknown>>({
   }, [tableId, data, bucketColumns, columnVisibility, groupBy?.field, bucketGroupBySeg, bucketGroupError]);
 
   // Evaluate metric values for visible metric columns on current page rows (best-effort, non-sorting).
+  // Fetches are done in parallel to avoid race conditions where sequential fetches get cancelled
+  // mid-stream when dependencies change.
   useEffect(() => {
     if (!tableId) return;
     const visibleMetricKeys = Object.keys(metricColumns || {}).filter((k) => (columnVisibility as any)?.[k] === true);
@@ -793,32 +811,46 @@ export function DataTable<TData extends Record<string, unknown>>({
     if (!colKeys.length) return;
 
     let cancelled = false;
-    (async () => {
-      for (const colKey of colKeys) {
-        const meta = metricColumns[colKey];
-        const entityKind = meta?.entityKind || '';
-        if (!entityKind) continue;
-        try {
-          const res = await fetch('/api/metrics/segments/table-metrics/evaluate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tableId, columnKey: colKey, entityKind, entityIds: idsByCol[colKey] }),
-          });
-          const json = await res.json().catch(() => ({}));
-          if (!res.ok) continue;
-          const values = json?.data?.values && typeof json.data.values === 'object' ? json.data.values : {};
-          const map: Record<string, number> = {};
-          for (const [id, val] of Object.entries(values)) {
-            const n = typeof val === 'number' ? val : Number(val);
-            if (!Number.isFinite(n)) continue;
-            map[String(id)] = n;
-          }
-          if (!cancelled) {
-            setMetricValues((prev) => ({ ...(prev || {}), [colKey]: map }));
-          }
-        } catch {
-          // ignore
+
+    // Fetch a single column's metric values
+    const fetchColumn = async (colKey: string): Promise<{ colKey: string; map: Record<string, number> } | null> => {
+      const meta = metricColumns[colKey];
+      const entityKind = meta?.entityKind || '';
+      if (!entityKind) return null;
+      try {
+        const res = await fetch('/api/metrics/segments/table-metrics/evaluate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tableId, columnKey: colKey, entityKind, entityIds: idsByCol[colKey] }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) return null;
+        const values = json?.data?.values && typeof json.data.values === 'object' ? json.data.values : {};
+        const map: Record<string, number> = {};
+        for (const [id, val] of Object.entries(values)) {
+          const n = typeof val === 'number' ? val : Number(val);
+          if (!Number.isFinite(n)) continue;
+          map[String(id)] = n;
         }
+        return { colKey, map };
+      } catch {
+        return null;
+      }
+    };
+
+    // Fetch all columns in parallel, then update state atomically
+    (async () => {
+      const results = await Promise.all(colKeys.map(fetchColumn));
+      if (cancelled) return;
+      // Merge all successful results into a single state update
+      const merged: Record<string, Record<string, number>> = {};
+      for (const result of results) {
+        if (result) {
+          merged[result.colKey] = result.map;
+        }
+      }
+      if (Object.keys(merged).length > 0) {
+        setMetricValues((prev) => ({ ...(prev || {}), ...merged }));
       }
     })();
 
