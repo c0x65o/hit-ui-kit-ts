@@ -5,38 +5,32 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
-  "sideEffects": false,
   "exports": {
     ".": {
-      "development": "./src/index.tsx",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./components/*": {
-      "development": "./src/components/*.tsx",
       "types": "./dist/components/*.d.ts",
       "import": "./dist/components/*.js",
       "require": "./dist/components/*.js",
       "default": "./dist/components/*.js"
     },
     "./hooks/*": {
-      "development": "./src/hooks/*.ts",
       "types": "./dist/hooks/*.d.ts",
       "import": "./dist/hooks/*.js",
       "require": "./dist/hooks/*.js",
       "default": "./dist/hooks/*.js"
     },
     "./theme": {
-      "development": "./src/theme/index.ts",
       "types": "./dist/theme/index.d.ts",
       "import": "./dist/theme/index.js",
       "require": "./dist/theme/index.js",
       "default": "./dist/theme/index.js"
     },
     "./tokens/*": {
-      "development": "./src/tokens/*.ts",
       "types": "./dist/tokens/*.d.ts",
       "import": "./dist/tokens/*.js",
       "require": "./dist/tokens/*.js",
