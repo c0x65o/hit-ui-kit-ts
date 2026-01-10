@@ -34,7 +34,7 @@ coverage/
 # Temporary files
 *.tmp
 .cache/
-dist/
+# NOTE: dist/ is NOT ignored - TypeScript packages must ship compiled output for npm consumers
 __pycache__/
 *.py[cod]
 *.map
