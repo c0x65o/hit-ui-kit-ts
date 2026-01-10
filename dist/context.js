@@ -8,21 +8,42 @@ import { jsx as _jsx } from "react/jsx-runtime";
  */
 import { createContext, useContext } from 'react';
 // =============================================================================
-// UI KIT CONTEXT
+// UI KIT CONTEXT - SINGLETON PATTERN
 // =============================================================================
-// SINGLETON PATTERN: Store context on globalThis to ensure only one instance exists
-// even when the module is bundled multiple times by webpack (e.g., app + feature packs).
-// Without this, each bundle creates its own context, causing "useUi must be used within
-// UiKitProvider" errors because the provider and consumer use different context objects.
-const CONTEXT_KEY = Symbol.for('@hit/ui-kit/UiKitContext');
-function getOrCreateContext() {
-    const globalObj = globalThis;
-    if (!globalObj[CONTEXT_KEY]) {
-        globalObj[CONTEXT_KEY] = createContext(null);
+// 
+// CRITICAL: This module may be bundled multiple times by webpack (once per chunk).
+// Each bundle would create its own React Context, causing "useUi must be used within
+// UiKitProvider" errors because provider and consumer use different context instances.
+//
+// Solution: Store the context on window/__HIT_UI_KIT_CONTEXT__ so all bundles share it.
+// We use a string key (not Symbol.for) because webpack optimizes away Symbol.for.
+// The IIFE and typeof checks prevent webpack from inlining/optimizing this away.
+const CONTEXT_KEY = '__HIT_UI_KIT_CONTEXT__';
+// Use an IIFE to prevent webpack from optimizing this away
+const UiKitContext = (() => {
+    // Must check typeof to avoid SSR issues where window doesn't exist
+    if (typeof window !== 'undefined') {
+        // Check if context already exists from another bundle
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const win = window;
+        if (win[CONTEXT_KEY]) {
+            return win[CONTEXT_KEY];
+        }
+        // Create and store the context
+        const ctx = createContext(null);
+        win[CONTEXT_KEY] = ctx;
+        return ctx;
     }
-    return globalObj[CONTEXT_KEY];
-}
-const UiKitContext = getOrCreateContext();
+    // SSR: use globalThis for server-side
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const globalObj = globalThis;
+    if (globalObj[CONTEXT_KEY]) {
+        return globalObj[CONTEXT_KEY];
+    }
+    const ctx = createContext(null);
+    globalObj[CONTEXT_KEY] = ctx;
+    return ctx;
+})();
 /**
  * Hook to access UI Kit components.
  * Must be used within a UiKitProvider.
