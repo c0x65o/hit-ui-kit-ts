@@ -18,44 +18,44 @@ import type { UiKit } from './types';
 // Each bundle would create its own React Context, causing "useUi must be used within
 // UiKitProvider" errors because provider and consumer use different context instances.
 //
-// Solution: Store the context on window/__HIT_UI_KIT_CONTEXT__ so all bundles share it.
-// We use a string key (not Symbol.for) because webpack optimizes away Symbol.for.
-// The IIFE and typeof checks prevent webpack from inlining/optimizing this away.
+// Solution: Access the context through a getter function at RUNTIME, not module load.
+// This prevents webpack from inlining the createContext call.
 
 const CONTEXT_KEY = '__HIT_UI_KIT_CONTEXT__';
 
-// Use an IIFE to prevent webpack from optimizing this away
-const UiKitContext: React.Context<UiKit | null> = (() => {
-  // Must check typeof to avoid SSR issues where window doesn't exist
+/**
+ * Get or create the shared context. Called at runtime, not bundle time.
+ * The dynamic property access prevents webpack optimization.
+ */
+function getContext(): React.Context<UiKit | null> {
+  // Use bracket notation with a variable to prevent webpack inlining
+  const key = CONTEXT_KEY;
+  
   if (typeof window !== 'undefined') {
-    // Check if context already exists from another bundle
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const win = window as any;
-    if (win[CONTEXT_KEY]) {
-      return win[CONTEXT_KEY] as React.Context<UiKit | null>;
+    if (!win[key]) {
+      win[key] = createContext<UiKit | null>(null);
     }
-    // Create and store the context
-    const ctx = createContext<UiKit | null>(null);
-    win[CONTEXT_KEY] = ctx;
-    return ctx;
+    return win[key];
   }
-  // SSR: use globalThis for server-side
+  
+  // SSR fallback
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const globalObj = globalThis as any;
-  if (globalObj[CONTEXT_KEY]) {
-    return globalObj[CONTEXT_KEY] as React.Context<UiKit | null>;
+  const g = globalThis as any;
+  if (!g[key]) {
+    g[key] = createContext<UiKit | null>(null);
   }
-  const ctx = createContext<UiKit | null>(null);
-  globalObj[CONTEXT_KEY] = ctx;
-  return ctx;
-})();
+  return g[key];
+}
 
 /**
  * Hook to access UI Kit components.
  * Must be used within a UiKitProvider.
  */
 export function useUi(): UiKit {
-  const context = useContext(UiKitContext);
+  const ctx = getContext();
+  const context = useContext(ctx);
   if (!context) {
     throw new Error(
       'useUi must be used within a UiKitProvider. ' +
@@ -75,7 +75,8 @@ export function UiKitProvider({
   kit: UiKit;
   children: React.ReactNode;
 }) {
-  return <UiKitContext.Provider value={kit}>{children}</UiKitContext.Provider>;
+  const ctx = getContext();
+  return <ctx.Provider value={kit}>{children}</ctx.Provider>;
 }
 
 // =============================================================================
