@@ -35,6 +35,8 @@ coverage/
 *.tmp
 .cache/
 # NOTE: dist/ is NOT ignored - TypeScript packages must ship compiled output for npm consumers
+# src/ IS ignored - consumers should use dist/, not source files
+src/
 __pycache__/
 *.py[cod]
 *.map
