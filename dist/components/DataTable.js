@@ -72,7 +72,7 @@ function formatMetricValue(value, meta) {
  * />
  * ```
  */
-export function DataTable({ columns, data, searchable = true, exportable = true, showColumnVisibility = true, searchDebounceMs = 300, onSearchChange, onRowClick, emptyMessage = 'No data available', loading = false, pageSize = 10, pageSizeOptions = [10, 25, 50, 100], onPageSizeChange, initialSorting, initialColumnVisibility, onSortingChange: onSortingChangeProp, 
+export function DataTable({ columns, data, searchable = true, exportable = true, showColumnVisibility = true, searchDebounceMs = 300, onSearchChange, onRowClick, emptyMessage = 'No data available', loading = false, pageSize = 25, pageSizeOptions = [25, 50, 100], onPageSizeChange, initialSorting, initialColumnVisibility, onSortingChange: onSortingChangeProp, 
 // Global filters
 showGlobalFilters = false, globalFilters, onGlobalFiltersChange, 
 // Server-side pagination
@@ -1248,7 +1248,7 @@ tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupBy
         getSortedRowModel: getSortedRowModel(),
         getPaginationRowModel: manualPagination ? undefined : getPaginationRowModel(),
         manualPagination,
-        pageCount: manualPagination && total !== undefined ? Math.ceil(total / pageSize) : undefined,
+        pageCount: manualPagination && total !== undefined ? Math.ceil(total / pagination.pageSize) : undefined,
         globalFilterFn: 'includesString',
     });
     const groupedRows = useMemo(() => {
@@ -1432,10 +1432,45 @@ tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupBy
     const showLoadingState = loading || !viewSystemReady;
     const visibleColumns = table.getVisibleFlatColumns();
     const hasData = data.length > 0;
-    const showPageSizeSelector = Boolean(onPageSizeChange) && (pageSizeOptions?.length || 0) > 0;
+    const showPageSizeSelector = (pageSizeOptions?.length || 0) > 0 && (!manualPagination || Boolean(onPageSizeChange));
     // Always show pagination footer when there's data (to display count)
     // The controls will be disabled if there's only one page
     const shouldShowPagination = !showLoadingState && hasData;
+    // Important: keep stable identity so ViewSelector doesn't "re-init" on every render
+    // (which can reset sorting/columns back to view defaults and make header sorting feel broken).
+    const viewAvailableColumns = useMemo(() => {
+        return [
+            ...columns.map((col) => ({
+                key: col.key,
+                label: col.label,
+                // Best-effort inference so view filters "just work" even without registry entries.
+                // Particularly helpful for date-ish fields like createdAt/updatedAt/*Timestamp.
+                type: col.filterType ||
+                    (/(?:At|_at|On|_on|Date|_date|Timestamp|_timestamp)$/i.test(String(col.key))
+                        ? 'date'
+                        : 'string'),
+                options: col.filterOptions,
+                hideable: col.hideable !== false,
+            })),
+            ...Object.values(bucketColumns || {}).map((c) => ({
+                key: c.columnKey,
+                label: c.columnLabel || c.columnKey,
+                type: 'select',
+                options: (c.buckets || []).map((b) => ({ value: b.bucketLabel, label: b.bucketLabel, sortOrder: b.sortOrder })),
+                hideable: true,
+            })),
+            ...Object.values(metricColumns || {})
+                .slice()
+                .sort((a, b) => (Number(a?.sortOrder ?? 0) - Number(b?.sortOrder ?? 0)) ||
+                String(a?.columnLabel || a?.columnKey || '').localeCompare(String(b?.columnLabel || b?.columnKey || '')))
+                .map((c) => ({
+                key: c.columnKey,
+                label: c.columnLabel || c.columnKey,
+                type: 'number',
+                hideable: true,
+            })),
+        ];
+    }, [columns, bucketColumns, metricColumns]);
     return (_jsxs(_Fragment, { children: [_jsx("style", { children: `
         @keyframes spin {
           from { transform: rotate(0deg); }
@@ -1453,36 +1488,7 @@ tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupBy
                             gap: spacing.md,
                             alignItems: 'center',
                             flexWrap: 'wrap',
-                        }), children: [viewsEnabled && tableId && (_jsx(ViewSelector, { tableId: tableId, fetchPrincipals: fetchPrincipals, availableColumns: [
-                                    ...columns.map((col) => ({
-                                        key: col.key,
-                                        label: col.label,
-                                        // Best-effort inference so view filters "just work" even without registry entries.
-                                        // Particularly helpful for date-ish fields like createdAt/updatedAt/*Timestamp.
-                                        type: col.filterType ||
-                                            (/(?:At|_at|On|_on|Date|_date|Timestamp|_timestamp)$/i.test(String(col.key))
-                                                ? 'date'
-                                                : 'string'),
-                                        options: col.filterOptions,
-                                        hideable: col.hideable !== false,
-                                    })),
-                                    ...Object.values(bucketColumns || {}).map((c) => ({
-                                        key: c.columnKey,
-                                        label: c.columnLabel || c.columnKey,
-                                        type: 'select',
-                                        options: (c.buckets || []).map((b) => ({ value: b.bucketLabel, label: b.bucketLabel, sortOrder: b.sortOrder })),
-                                        hideable: true,
-                                    })),
-                                    ...Object.values(metricColumns || {})
-                                        .slice()
-                                        .sort((a, b) => (Number(a?.sortOrder ?? 0) - Number(b?.sortOrder ?? 0)) || String(a?.columnLabel || a?.columnKey || '').localeCompare(String(b?.columnLabel || b?.columnKey || '')))
-                                        .map((c) => ({
-                                        key: c.columnKey,
-                                        label: c.columnLabel || c.columnKey,
-                                        type: 'number',
-                                        hideable: true,
-                                    })),
-                                ], onReady: setViewSystemReady, onViewChange: (view) => {
+                        }), children: [viewsEnabled && tableId && (_jsx(ViewSelector, { tableId: tableId, fetchPrincipals: fetchPrincipals, availableColumns: viewAvailableColumns, onReady: setViewSystemReady, onViewChange: (view) => {
                                     currentViewIdRef.current = view?.id ?? null;
                                     setCurrentViewId(view?.id ?? null);
                                     hasInitializedSelectionRef.current = true;
@@ -1795,17 +1801,21 @@ tableId, enableViews, onViewFiltersChange, onViewFilterModeChange, onViewGroupBy
                             justifyContent: 'space-between',
                             gap: spacing.md,
                             flexWrap: 'wrap',
-                        }), children: [_jsx("div", { style: { fontSize: ts.bodySmall.fontSize, color: colors.text.muted }, children: manualPagination && total !== undefined ? (_jsxs(_Fragment, { children: ["Showing ", table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1, " to", ' ', Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, total), ' ', "of ", total, " entries"] })) : (_jsxs(_Fragment, { children: ["Showing ", table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1, " to", ' ', Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, table.getFilteredRowModel().rows.length), ' ', "of ", table.getFilteredRowModel().rows.length, " entries"] })) }), _jsxs("div", { style: { display: 'flex', gap: spacing.xs, alignItems: 'center' }, children: [showPageSizeSelector && (_jsx(Dropdown, { align: "right", trigger: _jsxs(Button, { variant: "ghost", size: "sm", children: [pageSize, " / page ", _jsx(ChevronDown, { size: 14, style: { marginLeft: spacing.xs } })] }), items: pageSizeOptions.map((opt) => ({
+                        }), children: [_jsx("div", { style: { fontSize: ts.bodySmall.fontSize, color: colors.text.muted }, children: manualPagination && total !== undefined ? (_jsxs(_Fragment, { children: ["Showing ", table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1, " to", ' ', Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, total), ' ', "of ", total, " entries"] })) : (_jsxs(_Fragment, { children: ["Showing ", table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1, " to", ' ', Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, table.getFilteredRowModel().rows.length), ' ', "of ", table.getFilteredRowModel().rows.length, " entries"] })) }), _jsxs("div", { style: { display: 'flex', gap: spacing.xs, alignItems: 'center' }, children: [showPageSizeSelector && (_jsx(Dropdown, { align: "right", trigger: _jsxs(Button, { variant: "ghost", size: "sm", children: [table.getState().pagination.pageSize, " / page", ' ', _jsx(ChevronDown, { size: 14, style: { marginLeft: spacing.xs } })] }), items: pageSizeOptions.map((opt) => ({
                                             label: `${opt} / page`,
                                             onClick: () => {
                                                 // Reset to first page when page size changes
-                                                setPagination((prev) => ({ ...prev, pageIndex: 0, pageSize: opt }));
-                                                if (manualPagination && onPageChange)
-                                                    onPageChange(1);
-                                                if (onPageSizeChange)
-                                                    onPageSizeChange(opt);
+                                                setPagination({ pageIndex: 0, pageSize: opt });
+                                                if (!manualPagination)
+                                                    setInternalPage(0);
+                                                if (manualPagination) {
+                                                    if (onPageChange)
+                                                        onPageChange(1);
+                                                    if (onPageSizeChange)
+                                                        onPageSizeChange(opt);
+                                                }
                                             },
-                                            disabled: opt === pageSize,
+                                            disabled: opt === table.getState().pagination.pageSize,
                                         })) })), _jsx(Button, { variant: "ghost", size: "sm", onClick: () => table.setPageIndex(0), disabled: !table.getCanPreviousPage(), children: _jsx(ChevronsLeft, { size: 16 }) }), _jsx(Button, { variant: "ghost", size: "sm", onClick: () => table.previousPage(), disabled: !table.getCanPreviousPage(), children: _jsx(ChevronLeft, { size: 16 }) }), _jsxs("div", { style: { fontSize: ts.bodySmall.fontSize, color: colors.text.secondary, padding: `0 ${spacing.md}` }, children: ["Page ", table.getState().pagination.pageIndex + 1, " of ", table.getPageCount()] }), _jsx(Button, { variant: "ghost", size: "sm", onClick: () => table.nextPage(), disabled: !table.getCanNextPage(), children: _jsx(ChevronRight, { size: 16 }) }), _jsx(Button, { variant: "ghost", size: "sm", onClick: () => table.setPageIndex(table.getPageCount() - 1), disabled: !table.getCanNextPage(), children: _jsx(ChevronsRight, { size: 16 }) })] })] }))] })] }));
 }
 //# sourceMappingURL=DataTable.js.map

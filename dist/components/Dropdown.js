@@ -1,6 +1,6 @@
 'use client';
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useThemeTokens } from '../theme/index.js';
 import { styles } from './utils';
 export function Dropdown({ trigger, items, align = 'left' }) {
@@ -8,36 +8,72 @@ export function Dropdown({ trigger, items, align = 'left' }) {
     const [position, setPosition] = useState(null);
     const triggerRef = useRef(null);
     const { colors, radius, textStyles: ts, spacing, shadows } = useThemeTokens();
-    // Calculate dropdown position when opened
-    useEffect(() => {
-        if (open && triggerRef.current) {
-            const rect = triggerRef.current.getBoundingClientRect();
-            const dropdownWidth = 224; // 14rem = 224px
-            // Parse spacing.sm (could be "8px" or number)
-            const spacingValue = typeof spacing.sm === 'string'
-                ? parseFloat(spacing.sm.replace('px', '')) || 8
-                : spacing.sm || 8;
-            let left = rect.left;
-            let right;
-            if (align === 'right') {
-                right = window.innerWidth - rect.right;
-                left = undefined;
-            }
-            // Ensure dropdown doesn't go off-screen
-            if (align === 'left' && left !== undefined && left + dropdownWidth > window.innerWidth) {
-                // Flip to right side if it would overflow
-                right = window.innerWidth - rect.right;
-                left = undefined;
-            }
+    const computePosition = useCallback(() => {
+        if (!triggerRef.current)
+            return;
+        const rect = triggerRef.current.getBoundingClientRect();
+        const dropdownWidth = 224; // 14rem = 224px
+        const viewportW = window.innerWidth;
+        const viewportH = window.innerHeight;
+        const margin = 8;
+        // Parse spacing.sm (could be "8px" or number)
+        const spacingValue = typeof spacing.sm === 'string' ? parseFloat(spacing.sm.replace('px', '')) || 8 : spacing.sm || 8;
+        // Horizontal positioning (clamped)
+        let left = rect.left;
+        let right;
+        if (align === 'right') {
+            right = viewportW - rect.right;
+            left = undefined;
+        }
+        // If left-align would overflow, flip to right
+        if (align === 'left' && left !== undefined && left + dropdownWidth > viewportW - margin) {
+            right = viewportW - rect.right;
+            left = undefined;
+        }
+        if (left !== undefined) {
+            left = Math.max(margin, Math.min(left, viewportW - dropdownWidth - margin));
+        }
+        if (right !== undefined) {
+            right = Math.max(margin, Math.min(right, viewportW - dropdownWidth - margin));
+        }
+        // Vertical positioning: open down if there's room, otherwise open up.
+        const spaceBelow = viewportH - rect.bottom - margin;
+        const spaceAbove = rect.top - margin;
+        const minUsable = 160;
+        const openUp = spaceBelow < minUsable && spaceAbove > spaceBelow;
+        const maxHeightCap = Math.max(120, Math.floor(viewportH * 0.8));
+        const available = Math.max(120, Math.floor((openUp ? spaceAbove : spaceBelow) - Math.max(0, spacingValue)));
+        const maxHeight = Math.min(maxHeightCap, available);
+        if (openUp) {
             setPosition({
-                top: rect.bottom + spacingValue,
+                bottom: viewportH - rect.top + spacingValue,
                 ...(right !== undefined ? { right } : { left }),
+                maxHeight,
             });
         }
         else {
-            setPosition(null);
+            setPosition({
+                top: rect.bottom + spacingValue,
+                ...(right !== undefined ? { right } : { left }),
+                maxHeight,
+            });
         }
-    }, [open, align, spacing.sm]);
+    }, [align, spacing.sm]);
+    // Calculate dropdown position when opened + keep it in view on scroll/resize
+    useEffect(() => {
+        if (!open) {
+            setPosition(null);
+            return;
+        }
+        computePosition();
+        const onMove = () => computePosition();
+        window.addEventListener('resize', onMove);
+        window.addEventListener('scroll', onMove, true);
+        return () => {
+            window.removeEventListener('resize', onMove);
+            window.removeEventListener('scroll', onMove, true);
+        };
+    }, [open, computePosition, items.length]);
     return (_jsxs("div", { style: { position: 'relative' }, children: [_jsx("div", { ref: triggerRef, onClick: () => setOpen(!open), children: trigger }), open && position && (_jsxs(_Fragment, { children: [_jsx("div", { onClick: () => setOpen(false), style: styles({
                             position: 'fixed',
                             inset: 0,
@@ -45,10 +81,11 @@ export function Dropdown({ trigger, items, align = 'left' }) {
                         }) }), _jsx("div", { style: styles({
                             position: 'fixed',
                             zIndex: 50,
-                            top: `${position.top}px`,
+                            ...(position.top !== undefined ? { top: `${position.top}px` } : {}),
+                            ...(position.bottom !== undefined ? { bottom: `${position.bottom}px` } : {}),
                             ...(position.right !== undefined ? { right: `${position.right}px` } : { left: `${position.left}px` }),
                             width: '14rem',
-                            maxHeight: '80vh',
+                            maxHeight: `${position.maxHeight}px`,
                             overflowY: 'auto',
                             backgroundColor: colors.bg.surface,
                             border: `1px solid ${colors.border.subtle}`,
